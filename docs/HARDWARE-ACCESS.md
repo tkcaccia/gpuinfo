@@ -13,7 +13,7 @@ prices change, so check the linked provider page before launching hardware.
 | ARM64 Linux CPU | GitHub Actions `ubuntu-24.04-arm` | Active as `tkcaccia` | Validated |
 | NVIDIA CUDA on Linux | Hugging Face Jobs `t4-small` | Active as `tkcaccia`; billing enabled | Tesla T4 validated |
 | AMD ROCm on Linux | AMD Developer Cloud | Account active; credit request submitted 2026-09-05 and awaiting review | Not yet validated |
-| Intel OpenCL/Level Zero on Linux | Intel Tiber AI Cloud | Account pending | Not yet validated |
+| Intel OpenCL/Level Zero on Linux | Intel Cloud Services | Registration prepared 2026-09-05; password and email verification pending | Not yet validated |
 | NVIDIA CUDA/OpenCL on Windows | Windows GPU VM or self-hosted runner | Provider pending | Not yet validated |
 
 Never put passwords, API tokens, cloud credentials, SSH private keys, or
@@ -151,15 +151,29 @@ current price and image before creation because these details can change.
 AMD warns that a powered-off VM can remain billable because its resources are
 reserved. Destroy it after validation; merely shutting it down is insufficient.
 
-## Intel Linux: Intel Tiber AI Cloud
+## Intel Linux: Intel Cloud Services
 
-Start here: <https://cloud.intel.com/>
+Portal: <https://cloud.intel.com/>
+
+Documentation: <https://cloud.intel.com/docs/index.html>
 
 Intel GPU access overview:
 <https://www.intel.com/content/www/us/en/developer/platform/data-center-gpu-max.html>
 
-1. Create an Intel Tiber AI Cloud account and activate the available trial or
-   credits.
+The former `console.cloud.intel.com` address no longer resolves. Use
+`cloud.intel.com`. On 2026-09-05, registration was prepared with the account
+holder's name, United Kingdom English, and South Africa; password creation and
+email verification still require the account holder. The newsletter option was
+left unchecked.
+
+The portal describes this workflow: request hardware from the catalog, wait for
+approval (normally up to three days), then access the approved instance in the
+browser or by SSH. Intel's GPU Max page advertises free evaluation access for
+up to 120 days, with possible extensions. Verify the exact entitlement shown in
+the account before requesting an instance.
+
+1. Create an Intel Cloud Services account and activate the available trial or
+   evaluation entitlement.
 2. Request a system with an Intel Data Center GPU Max or Flex device.
 3. Select a oneAPI image containing the Intel GPU driver and OpenCL/Level Zero
    runtime.
