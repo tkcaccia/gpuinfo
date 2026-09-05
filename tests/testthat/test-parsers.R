@@ -40,4 +40,5 @@ test_that("real NVIDIA validation fixture records a passing T4 run", {
     expect_true(any(evidence == "GPU: NVIDIA Tesla T4"))
     expect_true(any(evidence == "compute_capability: 7.5"))
     expect_true(any(evidence == "result: VALIDATION PASSED"))
+    expect_true(any(evidence == "deduplication: PASSED"))
 })

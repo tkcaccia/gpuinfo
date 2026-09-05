@@ -21,4 +21,6 @@ It confirmed a native CUDA driver initialization, one Tesla T4, compute
 capability 7.5, 15,828,320,256 bytes of memory, the local runtime and Toolkit,
 and backend selection. The first live run also exposed an OpenCL vendor-name
 deduplication issue; the resulting regression fix is covered by the fixture
-test suite.
+test suite. A second T4 run against commit `6aa149b` confirmed that the physical
+GPU is reported exactly once while CUDA and OpenCL remain available; see job
+[6a9c0fdbe686246ca69a3b08](https://huggingface.co/jobs/tkcaccia/6a9c0fdbe686246ca69a3b08).

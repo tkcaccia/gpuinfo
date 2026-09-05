@@ -16,3 +16,8 @@ nvcc: yes
 usable: yes
 best_backend: cuda
 result: VALIDATION PASSED
+regression_job: 6a9c0fdbe686246ca69a3b08
+verified_commit: 6aa149b374dd9411b360ccb687b25191bd4b5e58
+physical_gpu_count: 1
+opencl_available: yes
+deduplication: PASSED
