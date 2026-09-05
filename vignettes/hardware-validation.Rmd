@@ -1,0 +1,104 @@
+---
+title: "Hardware Detection and Validation"
+author: "Stefano Cacciatore"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Hardware Detection and Validation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+`gpuinfo` detects CPU and GPU hardware and reports whether local compute
+backends appear usable. Detection is framework-independent: a positive result
+does not imply that torch, TensorFlow, or another package was compiled with
+that backend.
+
+## Quick check on the current computer
+
+```{r quick-check, eval=FALSE}
+library(gpuinfo)
+
+has_cpu()
+has_gpu()
+has_cuda()
+has_metal()
+has_rocm()
+has_opencl()
+
+gpu_info()
+backend_info()
+gpu_sitrep()
+```
+
+All probes are defensive. Missing hardware, commands, drivers, or libraries
+produce `FALSE`, empty results, or `NA` fields instead of an installation or
+runtime error. Detailed backend information distinguishes `available`,
+`unavailable`, and `unknown`; convenience predicates only return `TRUE` for a
+confirmed usable backend.
+
+## Evidence shipped with this release
+
+Real-device results are stored with the package and returned by
+`validation_info()`. The table is intentionally narrower than the implemented
+probe set.
+
+```{r validation-evidence}
+library(gpuinfo)
+validation_info()
+```
+
+For version 0.1.0, real GPU validation covers:
+
+- Apple M3 with Metal on macOS;
+- NVIDIA Tesla T4 with CUDA on Linux; and
+- NVIDIA Tesla T4 OpenCL enumeration and CUDA/OpenCL physical-device
+  deduplication on Linux.
+
+Linux ARM64 validates the CPU path and native package compilation. Hosted
+Linux, Windows, Intel macOS, and Apple Silicon macOS jobs exercise package
+installation, tests, and no-GPU behavior. A hosted Windows CPU runner is not
+evidence of Windows NVIDIA support.
+
+AMD ROCm, Intel GPU OpenCL, and Windows NVIDIA CUDA/OpenCL remain unvalidated
+for version 0.1.0. Their probes are available for early testing but are not
+represented as validated hardware support.
+
+## Reproducing a real-hardware run
+
+Use a clean public commit so the tested source is recoverable. Replace
+`BACKEND` with `cuda`, `metal`, `rocm`, or `opencl`.
+
+```{sh hardware-validation, eval=FALSE}
+git clone https://github.com/tkcaccia/gpuinfo.git
+cd gpuinfo
+git rev-parse HEAD
+R CMD INSTALL .
+Rscript tools/validate-hardware.R BACKEND | tee validation-output.txt
+```
+
+A successful run ends with `VALIDATION PASSED`. Preserve the full output and
+record the package commit, operating system, architecture, GPU model, driver,
+runtime, memory, provider, and job identifier. Cloud instances must be
+terminated after collecting the evidence; merely disconnecting from or
+stopping a billable GPU machine may leave charges running.
+
+## What counts as validation
+
+The project uses three distinct levels of testing:
+
+1. Parser fixtures verify that representative command output is interpreted
+   correctly. They do not prove hardware support.
+2. CPU-only continuous integration verifies portability, installation, and
+   safe behavior when accelerators are absent. It does not validate a GPU.
+3. A real-hardware run must enumerate the device and expected backend and must
+   complete `tools/validate-hardware.R` successfully. Only these runs are added
+   to `validation_info()`.
+
+This separation keeps release claims auditable and allows later package
+versions to promote AMD, Intel, or Windows GPU support only after the relevant
+hardware run passes.
