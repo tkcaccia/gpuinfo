@@ -1,0 +1,6 @@
+^\.github$
+^CONTRIBUTING\.md$
+^tools$
+^LICENSE\.md$
+^README\.Rmd$
+^cran-comments\.md$
