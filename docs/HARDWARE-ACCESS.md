@@ -13,7 +13,7 @@ prices change, so check the linked provider page before launching hardware.
 | ARM64 Linux CPU | GitHub Actions `ubuntu-24.04-arm` | Active as `tkcaccia` | Validated |
 | NVIDIA CUDA on Linux | Hugging Face Jobs `t4-small` | Active as `tkcaccia`; billing enabled | Tesla T4 validated |
 | AMD ROCm on Linux | AMD Developer Cloud | Account active; credit request submitted 2026-09-05 and awaiting review | Not yet validated |
-| Intel OpenCL/Level Zero on Linux | Intel Cloud Services | Registration prepared 2026-09-05; password and email verification pending | Not yet validated |
+| Intel OpenCL/Level Zero on Linux | Intel Cloud Services | Account and authenticator MFA active; Arc access currently capacity-limited | Not yet validated |
 | NVIDIA CUDA/OpenCL on Windows | Windows GPU VM or self-hosted runner | Provider pending | Not yet validated |
 
 Never put passwords, API tokens, cloud credentials, SSH private keys, or
@@ -161,10 +161,22 @@ Intel GPU access overview:
 <https://www.intel.com/content/www/us/en/developer/platform/data-center-gpu-max.html>
 
 The former `console.cloud.intel.com` address no longer resolves. Use
-`cloud.intel.com`. On 2026-09-05, registration was prepared with the account
-holder's name, United Kingdom English, and South Africa; password creation and
-email verification still require the account holder. The newsletter option was
-left unchecked.
+`cloud.intel.com`. The Intel account and authenticator-app MFA were activated
+on 2026-09-05. No password, MFA seed, recovery code, or other authentication
+secret is stored in this repository.
+
+On 2026-09-05 the catalog offered three Intel Arc Pro B Series evaluation
+systems:
+
+- `BM-CRISDV-SPR`: 2 x 32 GB GPUs on 4th Gen Intel Xeon processors;
+- `BM-CRISDV-GNR`: 4 x 32 GB GPUs on 6th Gen Intel Xeon processors;
+- `BM-CRISDV8-SPR`: 8 x 32 GB GPUs on 4th Gen Intel Xeon processors.
+
+Requests for the two-GPU and four-GPU systems were submitted for `gpuinfo`
+OpenCL and oneAPI/SYCL detection testing. Both were rejected immediately for
+capacity reasons. The portal's support message said demand was too high and to
+resubmit later using a corporate email address; the account already uses a
+corporate address. No SSH key was uploaded and no instance was provisioned.
 
 The portal describes this workflow: request hardware from the catalog, wait for
 approval (normally up to three days), then access the approved instance in the
@@ -172,14 +184,17 @@ browser or by SSH. Intel's GPU Max page advertises free evaluation access for
 up to 120 days, with possible extensions. Verify the exact entitlement shown in
 the account before requesting an instance.
 
-1. Create an Intel Cloud Services account and activate the available trial or
-   evaluation entitlement.
-2. Request a system with an Intel Data Center GPU Max or Flex device.
-3. Select a oneAPI image containing the Intel GPU driver and OpenCL/Level Zero
-   runtime.
-4. Confirm `clinfo` enumerates a GPU, install R/build tools, and run the common
+1. Sign in with the existing Intel account and complete authenticator MFA.
+2. Open **Hardware Catalog**, select **GPU**, and retry the smallest available
+   Intel Arc system. Use the project name `gpuinfo-intel-arc` and explain that
+   the instance is for open-source R package hardware-detection validation.
+3. If the request is rejected for capacity, do not create repeated requests in
+   the same session. Retry later or use the request's **Support** action.
+4. After approval, use browser Connect initially. Upload an SSH public key only
+   if SSH access is needed; never store the private key in this repository.
+5. Confirm `clinfo` enumerates a GPU, install R/build tools, and run the common
    procedure with backend `opencl`.
-5. Save the output and delete the instance.
+6. Save the output and delete the instance before the reservation ends.
 
 The current package tests OpenCL. A future Level Zero backend should be treated
 as a separate capability rather than assuming that oneAPI implies OpenCL.
