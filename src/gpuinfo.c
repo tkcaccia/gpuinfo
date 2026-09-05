@@ -131,13 +131,13 @@ SEXP gpuinfo_opencl_probe(void) {
     gpuinfo_lib lib = gpuinfo_open(names);
     uint32_t platform_count = 0, device_count = 0, total = 0, p, d, offset = 0;
     void **platforms = NULL;
-    SEXP answer, answer_names, device_names, gpu_flags, memory_bytes, fp64_flags;
+    SEXP answer, answer_names, device_names, vendor_names, gpu_flags, memory_bytes, fp64_flags;
     const char *fields[] = {"library", "platform_count", "device_count", "devices",
-                            "gpu", "memory_bytes", "fp64"};
+                            "vendors", "gpu", "memory_bytes", "fp64"};
 
-    PROTECT(answer = allocVector(VECSXP, 7));
-    PROTECT(answer_names = allocVector(STRSXP, 7));
-    for (p = 0; p < 7; ++p) SET_STRING_ELT(answer_names, p, mkChar(fields[p]));
+    PROTECT(answer = allocVector(VECSXP, 8));
+    PROTECT(answer_names = allocVector(STRSXP, 8));
+    for (p = 0; p < 8; ++p) SET_STRING_ELT(answer_names, p, mkChar(fields[p]));
     setAttrib(answer, R_NamesSymbol, answer_names);
     if (lib != NULL) {
         cl_platforms_fn getPlatforms = (cl_platforms_fn) GPUINFO_SYM(lib, "clGetPlatformIDs");
@@ -153,6 +153,7 @@ SEXP gpuinfo_opencl_probe(void) {
         }
     }
     PROTECT(device_names = allocVector(STRSXP, total));
+    PROTECT(vendor_names = allocVector(STRSXP, total));
     PROTECT(gpu_flags = allocVector(LGLSXP, total));
     PROTECT(memory_bytes = allocVector(REALSXP, total));
     PROTECT(fp64_flags = allocVector(LGLSXP, total));
@@ -167,11 +168,15 @@ SEXP gpuinfo_opencl_probe(void) {
             if (getDevices(platforms[p], (uint64_t) 0xFFFFFFFF, device_count, devices, NULL) != 0) continue;
             for (d = 0; d < device_count; ++d) {
                 char name[512] = "";
+                char vendor[512] = "";
                 char extensions[4096] = "";
                 uint64_t type = 0, memory = 0, double_config = 0;
                 if (getInfo != NULL && getInfo(devices[d], 0x102B, sizeof(name) - 1, name, NULL) == 0)
                     SET_STRING_ELT(device_names, offset, mkCharCE(name, CE_UTF8));
                 else SET_STRING_ELT(device_names, offset, NA_STRING);
+                if (getInfo != NULL && getInfo(devices[d], 0x102C, sizeof(vendor) - 1, vendor, NULL) == 0)
+                    SET_STRING_ELT(vendor_names, offset, mkCharCE(vendor, CE_UTF8));
+                else SET_STRING_ELT(vendor_names, offset, NA_STRING);
                 if (getInfo != NULL && getInfo(devices[d], 0x1000, sizeof(type), &type, NULL) == 0)
                     LOGICAL(gpu_flags)[offset] = (type & 4) != 0;
                 else LOGICAL(gpu_flags)[offset] = NA_LOGICAL;
@@ -192,11 +197,12 @@ SEXP gpuinfo_opencl_probe(void) {
     SET_VECTOR_ELT(answer, 1, ScalarInteger((int) platform_count));
     SET_VECTOR_ELT(answer, 2, ScalarInteger((int) total));
     SET_VECTOR_ELT(answer, 3, device_names);
-    SET_VECTOR_ELT(answer, 4, gpu_flags);
-    SET_VECTOR_ELT(answer, 5, memory_bytes);
-    SET_VECTOR_ELT(answer, 6, fp64_flags);
+    SET_VECTOR_ELT(answer, 4, vendor_names);
+    SET_VECTOR_ELT(answer, 5, gpu_flags);
+    SET_VECTOR_ELT(answer, 6, memory_bytes);
+    SET_VECTOR_ELT(answer, 7, fp64_flags);
     if (lib != NULL) GPUINFO_CLOSE(lib);
-    UNPROTECT(6);
+    UNPROTECT(7);
     return answer;
 }
 

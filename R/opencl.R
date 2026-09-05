@@ -21,6 +21,7 @@ opencl_info <- function() {
         platform_count = as.integer(platforms),
         device_count = as.integer(length(devices)),
         devices = devices,
+        vendors = native$vendors,
         gpu_devices = native$devices[native$gpu %in% TRUE],
         memory_bytes = native$memory_bytes,
         fp64 = native$fp64,
@@ -33,10 +34,13 @@ opencl_info <- function() {
     if (!any(keep)) return(.gpuinfo_empty_gpus())
     models <- native$devices[keep]
     memory <- native$memory_bytes[keep] / 1024^2
-    vendor <- ifelse(grepl("NVIDIA", models, ignore.case = TRUE), "NVIDIA",
-        ifelse(grepl("AMD|Radeon", models, ignore.case = TRUE), "AMD",
-            ifelse(grepl("Intel", models, ignore.case = TRUE), "Intel",
-                ifelse(grepl("Apple", models, ignore.case = TRUE), "Apple", NA_character_))))
+    reported_vendor <- native$vendors %||% rep(NA_character_, length(native$devices))
+    reported_vendor <- rep_len(reported_vendor, length(native$devices))[keep]
+    vendor_text <- paste(reported_vendor, models)
+    vendor <- ifelse(grepl("NVIDIA", vendor_text, ignore.case = TRUE), "NVIDIA",
+        ifelse(grepl("AMD|ATI|Advanced Micro Devices|Radeon", vendor_text, ignore.case = TRUE), "AMD",
+            ifelse(grepl("Intel", vendor_text, ignore.case = TRUE), "Intel",
+                ifelse(grepl("Apple", vendor_text, ignore.case = TRUE), "Apple", reported_vendor))))
     data.frame(id = seq_along(models) - 1L, vendor = vendor, model = models,
         memory_mb = memory, backend = "opencl", compute_capability = NA_character_,
         stringsAsFactors = FALSE)

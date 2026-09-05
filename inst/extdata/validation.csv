@@ -1,3 +1,4 @@
 package_version,date,os,architecture,hardware,backend,result,scope
 0.1.0,2026-09-05,macOS 14.5,arm64,Apple M3,metal,pass,native probe and public API
 0.1.0,2026-09-05,macOS 14.5,arm64,Apple M3,cpu,pass,cpu model core count and fallback
+0.1.0,2026-09-05,Linux 6.12.100 / Ubuntu 22.04 container,x86_64,NVIDIA Tesla T4,cuda,pass,native driver device memory capability runtime toolkit and backend selection

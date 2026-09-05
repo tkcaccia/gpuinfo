@@ -23,3 +23,21 @@ test_that("Apple profiler fixture is parsed without live hardware", {
     expect_identical(rows$vendor, "Apple")
     expect_identical(rows$model, "Apple M3")
 })
+
+test_that("OpenCL vendor metadata prevents a CUDA device duplicate", {
+    native <- list(
+        devices = "Tesla T4", vendors = "NVIDIA Corporation", gpu = TRUE,
+        memory_bytes = 15828320256, fp64 = TRUE
+    )
+    rows <- gpuinfo:::.opencl_gpu_rows(native)
+    expect_identical(rows$vendor, "NVIDIA")
+    expect_identical(rows$model, "Tesla T4")
+})
+
+test_that("real NVIDIA validation fixture records a passing T4 run", {
+    path <- testthat::test_path("..", "fixtures", "nvidia", "hf-t4-validation.txt")
+    evidence <- readLines(path)
+    expect_true(any(evidence == "GPU: NVIDIA Tesla T4"))
+    expect_true(any(evidence == "compute_capability: 7.5"))
+    expect_true(any(evidence == "result: VALIDATION PASSED"))
+})

@@ -9,8 +9,8 @@
 .gpuinfo_native_opencl <- function() {
     tryCatch(.Call(C_gpuinfo_opencl_probe), error = function(e) list(
         library = FALSE, platform_count = 0L, device_count = 0L,
-        devices = character(), gpu = logical(), memory_bytes = numeric(),
-        fp64 = logical()
+        devices = character(), vendors = character(), gpu = logical(),
+        memory_bytes = numeric(), fp64 = logical()
     ))
 }
 

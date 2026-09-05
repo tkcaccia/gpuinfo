@@ -1,0 +1,18 @@
+Hugging Face Jobs real-hardware validation
+job: 6a9c0df1e686246ca69a3ada
+date: 2026-09-05
+image: nvidia/cuda:12.6.3-devel-ubuntu22.04
+flavor: t4-small
+R: 4.1.2
+host: Linux 6.12.100-125.179.amzn2023.x86_64
+CPU: Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+GPU: NVIDIA Tesla T4
+memory_bytes: 15828320256
+compute_capability: 7.5
+driver_version: 580.178.04
+runtime: yes
+toolkit: yes
+nvcc: yes
+usable: yes
+best_backend: cuda
+result: VALIDATION PASSED
