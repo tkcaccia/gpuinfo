@@ -1,6 +1,7 @@
 ^\.github$
 ^CONTRIBUTING\.md$
-^tools$
+^docs$
+^gpuinfo\.Rcheck$
+^gpuinfo_[0-9.]+\.tar\.gz$
 ^LICENSE\.md$
-^README\.Rmd$
 ^cran-comments\.md$

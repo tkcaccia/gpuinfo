@@ -11,6 +11,8 @@ Description: Detects central processing unit and graphics processing unit
     Python, or a vendor software development kit. Missing hardware,
     drivers, libraries, and utilities are handled safely.
 License: MIT + file LICENSE
+URL: https://github.com/tkcaccia/gpuinfo
+BugReports: https://github.com/tkcaccia/gpuinfo/issues
 Encoding: UTF-8
 NeedsCompilation: yes
 Depends: R (>= 3.6.0)

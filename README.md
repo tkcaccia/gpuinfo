@@ -81,6 +81,14 @@ Account setup, provider links, exact validation commands, credential handling,
 and cleanup procedures are recorded in the
 [hardware access and validation playbook](docs/HARDWARE-ACCESS.md).
 
+The 0.1.0 release has been validated on Apple M3 Metal, NVIDIA Tesla T4 CUDA
+and OpenCL, Linux ARM64 CPU, and hosted Linux, Windows, and macOS CPU runners.
+ROCm on AMD hardware, OpenCL on Intel GPU hardware, and CUDA/OpenCL on Windows
+GPU hardware remain unvalidated in this release. Their defensive probes are
+included for early testing, but they are not represented as validated hardware
+support. Later releases will update `validation_info()` only after real-device
+runs pass.
+
 ## License
 
 MIT © 2026 Stefano Cacciatore.
