@@ -10,7 +10,7 @@ prices change, so check the linked provider page before launching hardware.
 |---|---|---|---|
 | Apple Silicon / Metal | Local Apple M3 | Available | Validated |
 | Linux, Windows, Intel macOS, Apple Silicon macOS | GitHub Actions | Active as `tkcaccia` | Validated |
-| ARM64 Linux CPU | GitHub Actions `ubuntu-24.04-arm` | Active as `tkcaccia` | Automated CI configured |
+| ARM64 Linux CPU | GitHub Actions `ubuntu-24.04-arm` | Active as `tkcaccia` | Validated |
 | NVIDIA CUDA on Linux | Hugging Face Jobs `t4-small` | Active as `tkcaccia`; billing enabled | Tesla T4 validated |
 | AMD ROCm on Linux | AMD Developer Cloud | Account/credits pending | Not yet validated |
 | Intel OpenCL/Level Zero on Linux | Intel Tiber AI Cloud | Account pending | Not yet validated |
@@ -57,6 +57,9 @@ The normal workflow covers Linux x86-64, Windows x86-64, Intel macOS, Apple
 Silicon macOS, and Linux ARM64. GitHub documents hosted runner labels including
 `ubuntu-24.04-arm`, `windows-11-arm`, `macos-15-intel`, and Apple Silicon macOS:
 <https://docs.github.com/en/actions/reference/runners/github-hosted-runners>.
+
+The first ARM64 run passed on 2026-09-05:
+<https://github.com/tkcaccia/gpuinfo/actions/runs/33967507957>.
 
 Real GPUs can be attached as ephemeral self-hosted runners. Assign labels such
 as `nvidia,cuda`, `amd,rocm`, or `intel,opencl`, then manually dispatch
@@ -199,4 +202,3 @@ After validation:
 - destroy VMs rather than only stopping them;
 - check the provider dashboard for running resources and unexpected storage;
 - record the validation in the repository without recording credentials.
-

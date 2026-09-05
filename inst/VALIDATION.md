@@ -12,7 +12,7 @@ no-hardware CI are useful tests, but are not presented as hardware validation.
 | AMD | MI300X or Radeon Pro V710 | Linux | ROCm | Pending cloud run |
 | Intel | Arc/iGPU | Linux | OpenCL | Pending hardware access |
 | CPU only | x86-64 | Linux/Windows | CPU | Validated by hosted CI |
-| CPU only | ARM64 | Linux | CPU | Pending hosted CI |
+| CPU only | ARM64 | Ubuntu 24.04 | CPU | Validated by hosted CI |
 
 The NVIDIA run used an isolated `t4-small` worker, NVIDIA driver 580.178.04,
 CUDA 12.6 development image, R 4.1.2, and package commit `e456699`. The complete
@@ -24,3 +24,6 @@ deduplication issue; the resulting regression fix is covered by the fixture
 test suite. A second T4 run against commit `6aa149b` confirmed that the physical
 GPU is reported exactly once while CUDA and OpenCL remain available; see job
 [6a9c0fdbe686246ca69a3b08](https://huggingface.co/jobs/tkcaccia/6a9c0fdbe686246ca69a3b08).
+
+The Linux ARM64 package build and test run is preserved in GitHub Actions run
+[33967507957](https://github.com/tkcaccia/gpuinfo/actions/runs/33967507957).
