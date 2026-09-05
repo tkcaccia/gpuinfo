@@ -39,8 +39,8 @@ was built with GPU support. In particular:
 - `has_metal()` reports macOS hardware/OS Metal capability and does not inspect
   torch MPS support.
 - `has_rocm()` requires an AMD GPU plus an apparent usable ROCm runtime/driver.
-- `has_opencl()` detects an OpenCL loader or a working `clinfo` installation;
-  it does not imply that a particular R package can use OpenCL.
+- `has_opencl()` requires a loader, an enumerated platform, and at least one
+  compute device; it does not imply that a particular R package can use OpenCL.
 
 All probes are defensive. Missing commands, drivers, files, or hardware return
 `FALSE`, empty data frames, or `NA` fields rather than errors.
@@ -77,6 +77,9 @@ changing them.
 the installed package. Mock parser tests and CPU-only CI are intentionally not
 presented as real GPU validation. The source repository also contains manually
 triggered workflows for labeled NVIDIA, AMD, and Intel self-hosted runners.
+Account setup, provider links, exact validation commands, credential handling,
+and cleanup procedures are recorded in the
+[hardware access and validation playbook](docs/HARDWARE-ACCESS.md).
 
 ## License
 
