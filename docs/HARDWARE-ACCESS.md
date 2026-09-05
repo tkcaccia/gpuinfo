@@ -12,7 +12,7 @@ prices change, so check the linked provider page before launching hardware.
 | Linux, Windows, Intel macOS, Apple Silicon macOS | GitHub Actions | Active as `tkcaccia` | Validated |
 | ARM64 Linux CPU | GitHub Actions `ubuntu-24.04-arm` | Active as `tkcaccia` | Validated |
 | NVIDIA CUDA on Linux | Hugging Face Jobs `t4-small` | Active as `tkcaccia`; billing enabled | Tesla T4 validated |
-| AMD ROCm on Linux | AMD Developer Cloud | Account/credits pending | Not yet validated |
+| AMD ROCm on Linux | AMD Developer Cloud | Account active; credit request submitted 2026-09-05 and awaiting review | Not yet validated |
 | Intel OpenCL/Level Zero on Linux | Intel Tiber AI Cloud | Account pending | Not yet validated |
 | NVIDIA CUDA/OpenCL on Windows | Windows GPU VM or self-hosted runner | Provider pending | Not yet validated |
 
@@ -110,6 +110,30 @@ Start here:
 
 Credit instructions:
 <https://www.amd.com/en/developer/resources/technical-articles/2026/how-to-claim-amd-cloud-credits.html>
+
+Cloud dashboard: <https://devcloud.amd.com/>
+
+Credit request form: <https://try.digitalocean.com/amd-cloud-free-credit/>
+
+### Account status (2026-09-05)
+
+- The AMD AI Developer Program account is active and shows a 100-credit member
+  benefit.
+- The AMD Developer Cloud sign-in method was changed from GitHub to AMD SSO, so
+  use the **Sign in with AMD** option for this cloud account.
+- The cloud billing page still showed **$0 credits applied**. The 100-credit
+  member benefit is not spendable in the cloud until the separate credit
+  request is approved and applied.
+- The DigitalOcean-hosted AMD GPU credit form was submitted successfully on
+  2026-09-05. Its confirmation said the request was assigned to the team for
+  review and that follow-up would arrive by email.
+- No payment method, SSH key, or GPU Droplet has been added or created yet.
+
+Wait for the approval email, then sign in at the cloud dashboard and verify the
+credit appears on the billing page before creating hardware. At the time of the
+request, the create page offered one on-demand MI300X (192 GB VRAM, 20 vCPU,
+240 GB RAM) with an Ubuntu 24.04/ROCm image at $1.99 per GPU-hour. Recheck the
+current price and image before creation because these details can change.
 
 1. Create an AMD account and join the AMD AI Developer Program.
 2. Open **Member Perks**, request cloud credits, and complete the verification
