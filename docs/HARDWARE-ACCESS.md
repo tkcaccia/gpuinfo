@@ -174,8 +174,9 @@ systems:
 
 Requests for the two-GPU and four-GPU systems were submitted for `gpuinfo`
 OpenCL and oneAPI/SYCL detection testing. Both were rejected immediately for
-capacity reasons. The portal's support message said demand was too high and to
-resubmit later using a corporate email address; the account already uses a
+capacity reasons. A later retry of the two-GPU system on 2026-09-05 was also
+rejected immediately. The portal's support message said demand was too high and
+to resubmit later using a corporate email address; the account already uses a
 corporate address. No SSH key was uploaded and no instance was provisioned.
 
 The portal describes this workflow: request hardware from the catalog, wait for
