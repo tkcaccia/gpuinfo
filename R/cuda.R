@@ -96,7 +96,7 @@
 #'
 #' @return A named list. `usable` is `TRUE` when an NVIDIA GPU is visible to a
 #'   working NVIDIA driver.
-#' @export
+#' @noRd
 cuda_info <- function() {
     native <- .gpuinfo_native_cuda()
     gpus <- .cuda_rows()
@@ -128,36 +128,35 @@ cuda_info <- function() {
     )
 }
 
-#' CUDA capability predicates
+#' Test whether CUDA appears usable
 #'
-#' These functions always return one non-missing logical value. `has_cuda()`
-#' reports apparent usability (a visible NVIDIA GPU and working driver), while
-#' the other functions expose individual parts of the CUDA installation.
+#' Returns `TRUE` when an NVIDIA GPU is visible through an apparently working
+#' NVIDIA driver. Detection uses a dynamically loaded CUDA driver library and,
+#' when available, read-only `nvidia-smi` queries.
 #'
-#' @return A single `TRUE` or `FALSE`.
-#' @name cuda_predicates
-NULL
-
-#' @rdname cuda_predicates
+#' The CUDA Toolkit and `nvcc` compiler are not required: applications can use
+#' a GPU through a driver and a bundled runtime without a local Toolkit. A
+#' positive result does not imply that torch, TensorFlow, or another R package
+#' was built with CUDA support. Inspect `hardware_info()$cuda` to distinguish
+#' GPU, driver, runtime, Toolkit, compiler, and version information.
+#'
+#' @return One non-missing logical value: `TRUE` when CUDA appears usable,
+#'   otherwise `FALSE`.
+#'
+#' @examples
+#' has_cuda()
+#' hardware_info()$cuda
+#'
+#' @seealso [hardware_info()], [has_gpu()]
 #' @export
 has_cuda <- function() cuda_info()$usable
 
-#' @rdname cuda_predicates
-#' @export
 has_nvidia_gpu <- function() cuda_info()$gpu
 
-#' @rdname cuda_predicates
-#' @export
 has_cuda_driver <- function() cuda_info()$driver
 
-#' @rdname cuda_predicates
-#' @export
 has_cuda_runtime <- function() cuda_info()$runtime
 
-#' @rdname cuda_predicates
-#' @export
 has_cuda_toolkit <- function() cuda_info()$toolkit
 
-#' @rdname cuda_predicates
-#' @export
 has_nvcc <- function() cuda_info()$nvcc

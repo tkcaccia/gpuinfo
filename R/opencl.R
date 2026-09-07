@@ -5,7 +5,7 @@
 #'
 #' @return A named list containing loader, utility, platform, device, and
 #'   availability information.
-#' @export
+#' @noRd
 opencl_info <- function() {
     native <- .gpuinfo_native_opencl()
     result <- .gpuinfo_command("clinfo", "--raw")
@@ -47,6 +47,24 @@ opencl_info <- function() {
 }
 
 #' Test whether OpenCL is available
-#' @return A single `TRUE` or `FALSE`.
+#'
+#' Returns `TRUE` when an OpenCL loader is present, at least one platform can be
+#' enumerated, and at least one compute device is visible. Detection uses the
+#' OpenCL library directly and can supplement it with the read-only `clinfo`
+#' utility.
+#'
+#' OpenCL devices can be GPUs, CPUs, or other accelerators, so this predicate is
+#' not synonymous with [has_gpu()]. It also does not guarantee that a particular
+#' R package has OpenCL support. Inspect `hardware_info()$opencl` for platform,
+#' device, vendor, memory, and FP64 details.
+#'
+#' @return One non-missing logical value: `TRUE` when OpenCL appears available,
+#'   otherwise `FALSE`.
+#'
+#' @examples
+#' has_opencl()
+#' hardware_info()$opencl
+#'
+#' @seealso [hardware_info()], [has_gpu()]
 #' @export
 has_opencl <- function() opencl_info()$available

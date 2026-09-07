@@ -33,7 +33,7 @@
 #'
 #' @param device Optional integer device id. By default all devices are shown.
 #' @return A data frame with one row per device.
-#' @export
+#' @noRd
 gpu_capabilities <- function(device = NULL) {
     gpu <- gpu_info()
     if (!is.null(device)) gpu <- gpu[gpu$id %in% as.integer(device), , drop = FALSE]
@@ -64,7 +64,7 @@ gpu_capabilities <- function(device = NULL) {
 #' @param backend Optional backend restriction.
 #' @param device Optional integer device id.
 #' @return A single non-missing logical value.
-#' @export
+#' @noRd
 supports <- function(feature, backend = NULL, device = NULL) {
     if (!is.character(feature) || length(feature) != 1L || is.na(feature))
         stop("`feature` must be one non-missing character value.", call. = FALSE)

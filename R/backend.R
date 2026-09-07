@@ -4,7 +4,7 @@
 #' package. CPU is always included.
 #'
 #' @return A character vector using lowercase backend names.
-#' @export
+#' @noRd
 available_backends <- function() {
     registry <- .gpuinfo_backend_registry()
     available <- vapply(registry, function(entry) isTRUE(entry$available()), logical(1L))
@@ -17,7 +17,7 @@ available_backends <- function() {
 #'   `"cuda"`, `"metal"`, `"rocm"`, `"opencl"`, and `"cpu"`.
 #'
 #' @return One backend name as a character scalar.
-#' @export
+#' @noRd
 best_backend <- function(prefer = c("cuda", "metal", "rocm", "opencl", "cpu")) {
     select_backend(prefer = prefer)
 }

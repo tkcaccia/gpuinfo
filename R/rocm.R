@@ -35,7 +35,7 @@
 #'
 #' @return A named list describing AMD GPU visibility, the kernel interface,
 #'   ROCm utilities, installation, version, and apparent usability.
-#' @export
+#' @noRd
 rocm_info <- function() {
     native <- .gpuinfo_native_rocm()
     rocminfo <- .gpuinfo_command("rocminfo")
@@ -62,6 +62,23 @@ rocm_info <- function() {
 }
 
 #' Test whether ROCm appears usable
-#' @return A single `TRUE` or `FALSE`.
+#'
+#' Returns `TRUE` when an AMD GPU is visible and a usable ROCm/HIP runtime path
+#' is apparent. Detection can use the HIP runtime library, `/dev/kfd`,
+#' `rocminfo`, `rocm-smi`, `hipcc`, and common ROCm installation locations.
+#'
+#' Merely finding ROCm files is insufficient: the predicate requires compatible
+#' visible hardware and runtime evidence. A positive result does not guarantee
+#' that another R package was compiled with ROCm support. Inspect
+#' `hardware_info()$rocm` for the individual detection fields and version.
+#'
+#' @return One non-missing logical value: `TRUE` when ROCm appears usable,
+#'   otherwise `FALSE`.
+#'
+#' @examples
+#' has_rocm()
+#' hardware_info()$rocm
+#'
+#' @seealso [hardware_info()], [has_gpu()]
 #' @export
 has_rocm <- function() rocm_info()$usable

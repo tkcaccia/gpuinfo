@@ -4,7 +4,7 @@
 #' visibility variables. No information is transmitted.
 #'
 #' @return A named list describing the current execution environment.
-#' @export
+#' @noRd
 environment_info <- function() {
     cgroup <- if (file.exists("/proc/1/cgroup"))
         tryCatch(readLines("/proc/1/cgroup", warn = FALSE), error = function(e) character()) else character()
@@ -37,7 +37,7 @@ environment_info <- function() {
 #' Report accelerator visibility controls
 #'
 #' @return A named character vector. Unset variables are represented by `NA`.
-#' @export
+#' @noRd
 visible_devices <- function() {
     variables <- c("CUDA_VISIBLE_DEVICES", "NVIDIA_VISIBLE_DEVICES",
                    "ROCR_VISIBLE_DEVICES", "HIP_VISIBLE_DEVICES",
@@ -46,27 +46,11 @@ visible_devices <- function() {
     stats::setNames(unname(values), variables)
 }
 
-#' GPU device identifiers and counts
-#'
-#' `available_gpu_count()` counts devices visible to this R process.
-#' `physical_gpu_count()` uses `nvidia-smi` when possible to bypass CUDA
-#' visibility filters, but otherwise returns `NA` when the physical count
-#' cannot be distinguished safely.
-#'
-#' @return An integer vector or scalar.
-#' @name gpu_visibility
-NULL
-
-#' @rdname gpu_visibility
-#' @export
+# GPU device identifiers and counts used internally.
 gpu_devices <- function() gpu_info()$id
 
-#' @rdname gpu_visibility
-#' @export
 available_gpu_count <- function() gpu_count()
 
-#' @rdname gpu_visibility
-#' @export
 physical_gpu_count <- function() {
     smi <- .cuda_smi_rows()
     if (nrow(smi)) return(as.integer(nrow(smi)))

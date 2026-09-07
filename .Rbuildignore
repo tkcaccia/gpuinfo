@@ -5,3 +5,4 @@
 ^gpuinfo_[0-9.]+\.tar\.gz$
 ^LICENSE\.md$
 ^cran-comments\.md$
+^\.aws-validation-local\.md$

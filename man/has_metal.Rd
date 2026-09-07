@@ -7,8 +7,25 @@
 has_metal()
 }
 \value{
-A single `TRUE` or `FALSE`.
+One non-missing logical value: \code{TRUE} when Metal appears usable,
+otherwise \code{FALSE}. It is \code{FALSE} on non-macOS platforms.
 }
 \description{
-Test whether Metal appears usable
+Returns \code{TRUE} on macOS when a Metal-capable graphics device is visible.
+Detection uses the Metal framework when it can be loaded and supplements it
+with \code{system_profiler} and Apple-silicon platform information.
+}
+\details{
+This reports operating-system and hardware capability, not framework-specific
+support such as torch MPS. A positive result therefore does not guarantee
+that another R package can execute work through Metal. Detailed fields are
+available in \code{hardware_info()$metal}.
+}
+\examples{
+has_metal()
+hardware_info()$metal
+
+}
+\seealso{
+\code{\link[=hardware_info]{hardware_info()}}, \code{\link[=has_gpu]{has_gpu()}}
 }

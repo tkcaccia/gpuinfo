@@ -44,7 +44,7 @@
 #' @return A data frame with one row per detected GPU and stable columns `id`,
 #'   `vendor`, `model`, `memory_mb`, `backend`, and `compute_capability`.
 #'   Unknown values are represented by `NA`.
-#' @export
+#' @noRd
 gpu_info <- function() {
     os <- Sys.info()[["sysname"]]
     gpus <- if (identical(os, "Darwin")) {
@@ -78,25 +78,30 @@ gpu_info <- function() {
     gpus
 }
 
-#' GPU summary helpers
+#' Test whether a GPU is detected
 #'
-#' @param unit Unit used for memory values.
-#' @return `has_gpu()` returns one logical value. `gpu_count()` returns a
-#'   non-negative integer. `gpu_memory()` returns a named numeric vector of
-#'   total memory sizes (possibly `NA`).
-#' @name gpu_helpers
-NULL
-
-#' @rdname gpu_helpers
+#' Returns `TRUE` when at least one graphics processor is visible to the current
+#' R process. Detection combines native vendor-library queries with portable
+#' operating-system and command-line fallbacks when available.
+#'
+#' This tests hardware visibility, not whether any particular compute backend
+#' or R framework can use the device. A GPU with a missing driver can therefore
+#' be detected while all backend predicates remain `FALSE`. Conversely, a
+#' container or scheduler can hide a physical GPU from the process.
+#'
+#' @return One non-missing logical value: `TRUE` when a visible GPU is detected,
+#'   otherwise `FALSE`.
+#'
+#' @examples
+#' has_gpu()
+#'
+#' @seealso [hardware_info()], [has_cuda()], [has_metal()], [has_rocm()],
+#'   [has_opencl()]
 #' @export
 has_gpu <- function() nrow(gpu_info()) > 0L
 
-#' @rdname gpu_helpers
-#' @export
 gpu_count <- function() as.integer(nrow(gpu_info()))
 
-#' @rdname gpu_helpers
-#' @export
 gpu_memory <- function(unit = c("bytes", "GB", "GiB", "MB", "MiB")) {
     unit <- match.arg(unit)
     info <- gpu_info()
@@ -114,7 +119,7 @@ gpu_memory <- function(unit = c("bytes", "GB", "GiB", "MB", "MiB")) {
 #'
 #' @param unit Unit used for memory values.
 #' @return A data frame with one row per detected GPU.
-#' @export
+#' @noRd
 gpu_memory_info <- function(unit = c("bytes", "GB", "GiB", "MB", "MiB")) {
     unit <- match.arg(unit)
     gpu <- gpu_info()

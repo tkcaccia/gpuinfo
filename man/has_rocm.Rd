@@ -7,8 +7,25 @@
 has_rocm()
 }
 \value{
-A single `TRUE` or `FALSE`.
+One non-missing logical value: \code{TRUE} when ROCm appears usable,
+otherwise \code{FALSE}.
 }
 \description{
-Test whether ROCm appears usable
+Returns \code{TRUE} when an AMD GPU is visible and a usable ROCm/HIP runtime path
+is apparent. Detection can use the HIP runtime library, \verb{/dev/kfd},
+\code{rocminfo}, \code{rocm-smi}, \code{hipcc}, and common ROCm installation locations.
+}
+\details{
+Merely finding ROCm files is insufficient: the predicate requires compatible
+visible hardware and runtime evidence. A positive result does not guarantee
+that another R package was compiled with ROCm support. Inspect
+\code{hardware_info()$rocm} for the individual detection fields and version.
+}
+\examples{
+has_rocm()
+hardware_info()$rocm
+
+}
+\seealso{
+\code{\link[=hardware_info]{hardware_info()}}, \code{\link[=has_gpu]{has_gpu()}}
 }

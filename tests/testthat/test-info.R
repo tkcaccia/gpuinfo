@@ -15,7 +15,7 @@ test_that("hardware_info and sitrep are safe", {
     expect_named(info, c(
         "r", "system", "cpu", "gpu", "accelerators", "capabilities", "cuda",
         "metal", "rocm", "opencl", "available_backends", "best_backend",
-        "environment"
+        "environment", "validation"
     ))
     expect_output(returned <- gpu_sitrep(), "gpuinfo diagnostic report")
     expect_type(returned, "list")

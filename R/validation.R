@@ -5,7 +5,7 @@
 #'
 #' @return A data frame containing package version, validation date, operating
 #'   system, architecture, hardware, backend, and result.
-#' @export
+#' @noRd
 validation_info <- function() {
     path <- system.file("extdata", "validation.csv", package = "gpuinfo")
     if (!nzchar(path)) return(data.frame())

@@ -7,8 +7,26 @@
 has_opencl()
 }
 \value{
-A single `TRUE` or `FALSE`.
+One non-missing logical value: \code{TRUE} when OpenCL appears available,
+otherwise \code{FALSE}.
 }
 \description{
-Test whether OpenCL is available
+Returns \code{TRUE} when an OpenCL loader is present, at least one platform can be
+enumerated, and at least one compute device is visible. Detection uses the
+OpenCL library directly and can supplement it with the read-only \code{clinfo}
+utility.
+}
+\details{
+OpenCL devices can be GPUs, CPUs, or other accelerators, so this predicate is
+not synonymous with \code{\link[=has_gpu]{has_gpu()}}. It also does not guarantee that a particular
+R package has OpenCL support. Inspect \code{hardware_info()$opencl} for platform,
+device, vendor, memory, and FP64 details.
+}
+\examples{
+has_opencl()
+hardware_info()$opencl
+
+}
+\seealso{
+\code{\link[=hardware_info]{hardware_info()}}, \code{\link[=has_gpu]{has_gpu()}}
 }

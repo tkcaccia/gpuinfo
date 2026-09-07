@@ -34,7 +34,7 @@
 #' @return A backend name, or `NA_character_` when no backend satisfies the
 #'   requirements. With the default requirements CPU is always selected as a
 #'   final fallback.
-#' @export
+#' @noRd
 select_backend <- function(require = character(),
                            prefer = c("cuda", "metal", "rocm", "opencl", "cpu"),
                            min_memory = 0) {
@@ -71,7 +71,7 @@ select_backend <- function(require = character(),
 #' @param strategy Either the first compatible device or the one with the most
 #'   reported memory.
 #' @return A one-row accelerator data frame, or an empty data frame.
-#' @export
+#' @noRd
 select_device <- function(backend = NULL, require = character(), min_memory = 0,
                           strategy = c("most_memory", "first")) {
     strategy <- match.arg(strategy)
@@ -101,7 +101,7 @@ select_device <- function(backend = NULL, require = character(), min_memory = 0,
 #' @param precision Optional precision requirement such as `"fp64"`.
 #' @param require Additional capabilities.
 #' @return A `gpuinfo_check` object with compatibility and diagnostic fields.
-#' @export
+#' @noRd
 check_accelerator <- function(backend = NULL, memory = 0, precision = NULL,
                               require = character()) {
     requirements <- unique(tolower(c(require, precision)))
@@ -130,7 +130,7 @@ print.gpuinfo_check <- function(x, ...) {
 #' @inheritParams check_accelerator
 #' @return The selected device, invisibly, or an error with a consistent
 #'   diagnostic message.
-#' @export
+#' @noRd
 require_accelerator <- function(backend = NULL, memory = 0, precision = NULL,
                                 require = character()) {
     check <- check_accelerator(backend, memory, precision, require)
@@ -145,26 +145,14 @@ require_accelerator <- function(backend = NULL, memory = 0, precision = NULL,
     invisible(check$device)
 }
 
-#' Require a GPU or vendor backend
-#' @return `TRUE` invisibly, or an error.
-#' @name require_backend
-NULL
-
+# Require a GPU or vendor backend. Used internally.
 .gpuinfo_require_backend <- function(backend) {
     ok <- if (backend == "gpu") has_gpu() else supports(backend)
     if (!ok) stop("Required ", toupper(backend), " capability is not available.", call. = FALSE)
     invisible(TRUE)
 }
 
-#' @rdname require_backend
-#' @export
 require_gpu <- function() .gpuinfo_require_backend("gpu")
-#' @rdname require_backend
-#' @export
 require_cuda <- function() .gpuinfo_require_backend("cuda")
-#' @rdname require_backend
-#' @export
 require_metal <- function() .gpuinfo_require_backend("metal")
-#' @rdname require_backend
-#' @export
 require_rocm <- function() .gpuinfo_require_backend("rocm")

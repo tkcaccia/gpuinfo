@@ -26,11 +26,11 @@
 #' Discover compute accelerators
 #'
 #' Returns a vendor-neutral representation of accelerators visible to the
-#' current R process. CPU fallback information is available through
-#' [backend_info()] and [cpu_info()].
+#' current R process. CPU fallback information is available through the
+#' internal `backend_info()` and `cpu_info()` helpers.
 #'
 #' @return A data frame with stable columns describing each accelerator.
-#' @export
+#' @noRd
 accelerator_info <- function() {
     gpu <- gpu_info()
     if (!nrow(gpu)) {
@@ -83,7 +83,7 @@ accelerator_info <- function() {
 #' backend could not be confirmed.
 #'
 #' @return A data frame with one row per supported backend.
-#' @export
+#' @noRd
 backend_info <- function() {
     registry <- .gpuinfo_backend_registry()
     details <- lapply(registry, function(entry) entry$info())
@@ -113,5 +113,5 @@ backend_info <- function() {
 
 #' Test whether a CPU is available
 #' @return A single `TRUE` value.
-#' @export
+#' @noRd
 has_cpu <- function() TRUE

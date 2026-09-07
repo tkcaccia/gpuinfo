@@ -41,7 +41,7 @@
 #'
 #' @return A named list describing the platform, GPUs, Metal support, and
 #'   apparent usability.
-#' @export
+#' @noRd
 metal_info <- function() {
     native <- .gpuinfo_native_metal()
     macos <- identical(Sys.info()[["sysname"]], "Darwin")
@@ -62,6 +62,23 @@ metal_info <- function() {
 }
 
 #' Test whether Metal appears usable
-#' @return A single `TRUE` or `FALSE`.
+#'
+#' Returns `TRUE` on macOS when a Metal-capable graphics device is visible.
+#' Detection uses the Metal framework when it can be loaded and supplements it
+#' with `system_profiler` and Apple-silicon platform information.
+#'
+#' This reports operating-system and hardware capability, not framework-specific
+#' support such as torch MPS. A positive result therefore does not guarantee
+#' that another R package can execute work through Metal. Detailed fields are
+#' available in `hardware_info()$metal`.
+#'
+#' @return One non-missing logical value: `TRUE` when Metal appears usable,
+#'   otherwise `FALSE`. It is `FALSE` on non-macOS platforms.
+#'
+#' @examples
+#' has_metal()
+#' hardware_info()$metal
+#'
+#' @seealso [hardware_info()], [has_gpu()]
 #' @export
 has_metal <- function() metal_info()$usable

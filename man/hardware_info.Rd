@@ -7,12 +7,74 @@
 hardware_info(as = c("list", "json"))
 }
 \arguments{
-\item{as}{Return a nested R list or a JSON string. JSON output requires the
-suggested `jsonlite` package.}
+\item{as}{Output representation. \code{"list"} returns native R objects.
+\code{"json"} returns a pretty-printed JSON character scalar and requires the
+suggested \code{jsonlite} package. Missing values become JSON \code{null} values.}
 }
 \value{
-A nested list containing R, system, CPU, GPU, and backend details.
+A nested list containing R, system, CPU, GPU, backend, environment,
+and package-validation details when \code{as = "list"}; otherwise a JSON
+character scalar containing the same information.
 }
 \description{
-Collect hardware information
+Creates a single structured snapshot of the CPU, visible GPUs, compute
+backends, execution environment, and validation evidence. This is the main
+entry point when more detail than the \verb{has_*()} predicates is required.
+}
+\details{
+Detection is read-only and framework-independent. It describes the hardware
+and system software visible to the current R process; it does not determine
+whether torch, TensorFlow, or another package was compiled with GPU support.
+Containers, schedulers, permissions, and device-visibility environment
+variables can affect the result.
+}
+\section{Returned components}{
+
+The report contains the following named components:
+\describe{
+\item{r}{R version and platform.}
+\item{system}{Operating-system name, release, version, and architecture.}
+\item{cpu}{CPU model, vendor, architecture, logical-core count, and OS.}
+\item{gpu}{One row per detected visible GPU, including device id, vendor,
+model, reported memory, backend, and NVIDIA compute capability when
+known. An empty data frame means that no visible GPU was detected.}
+\item{accelerators}{A vendor-neutral accelerator table with memory and
+backend-status information.}
+\item{capabilities}{Per-device precision, memory, and backend capability
+information. Unknown capabilities are represented by \code{NA}.}
+\item{cuda}{NVIDIA GPU, driver, runtime, Toolkit, \code{nvcc}, versions, and
+apparent CUDA usability. The CUDA version advertised by \code{nvidia-smi} is
+a driver-supported maximum, not necessarily an installed Toolkit.}
+\item{metal}{macOS platform, Apple silicon, device, framework, support,
+and apparent Metal usability.}
+\item{rocm}{AMD GPU, kernel driver, runtime, utilities, version, and
+apparent ROCm usability.}
+\item{opencl}{Loader, platforms, devices, vendors, memory, FP64 support,
+and apparent OpenCL availability.}
+\item{available_backends}{Detected usable backends, always including the
+CPU fallback.}
+\item{best_backend}{The first usable backend in the package priority order
+CUDA, Metal, ROCm, OpenCL, then CPU.}
+\item{environment}{Container, CI, WSL, scheduler, and device-visibility
+information. Values are reported without changing the environment.}
+\item{validation}{Real-hardware validation evidence shipped with this
+package version. This describes maintainer testing, not the current host.}
+}
+}
+
+\examples{
+info <- hardware_info()
+names(info)
+info$cpu
+info$gpu
+info$cuda$usable
+
+if (requireNamespace("jsonlite", quietly = TRUE)) {
+    json <- hardware_info("json")
+}
+
+}
+\seealso{
+\code{\link[=gpu_sitrep]{gpu_sitrep()}}, \code{\link[=has_gpu]{has_gpu()}}, \code{\link[=has_cuda]{has_cuda()}}, \code{\link[=has_metal]{has_metal()}},
+\code{\link[=has_rocm]{has_rocm()}}, \code{\link[=has_opencl]{has_opencl()}}
 }

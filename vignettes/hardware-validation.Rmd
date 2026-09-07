@@ -23,15 +23,13 @@ that backend.
 ```{r quick-check, eval=FALSE}
 library(gpuinfo)
 
-has_cpu()
 has_gpu()
 has_cuda()
 has_metal()
 has_rocm()
 has_opencl()
 
-gpu_info()
-backend_info()
+hardware_info()
 gpu_sitrep()
 ```
 
@@ -43,13 +41,13 @@ confirmed usable backend.
 
 ## Evidence shipped with this release
 
-Real-device results are stored with the package and returned by
-`validation_info()`. The table is intentionally narrower than the implemented
+Real-device results are stored with the package and returned inside
+`hardware_info()`. The table is intentionally narrower than the implemented
 probe set.
 
 ```{r validation-evidence}
 library(gpuinfo)
-validation_info()
+hardware_info()$validation
 ```
 
 For version 0.1.0, real GPU validation covers:
@@ -97,7 +95,7 @@ The project uses three distinct levels of testing:
    safe behavior when accelerators are absent. It does not validate a GPU.
 3. A real-hardware run must enumerate the device and expected backend and must
    complete `tools/validate-hardware.R` successfully. Only these runs are added
-   to `validation_info()`.
+   to the validation evidence returned by `hardware_info()`.
 
 This separation keeps release claims auditable and allows later package
 versions to promote AMD, Intel, or Windows GPU support only after the relevant

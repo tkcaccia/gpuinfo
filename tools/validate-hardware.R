@@ -10,16 +10,15 @@ cat("gpuinfo real-hardware validation\n")
 cat("expected backend:", backend, "\n\n")
 gpu_sitrep()
 
-info <- backend_info()
-row <- info[info$backend == backend, , drop = FALSE]
-if (!nrow(row) || row$status[[1L]] != "available") {
-    stop("Expected backend '", backend, "' was not available: ",
-         if (nrow(row)) row$reason[[1L]] else "missing backend row")
-}
+report <- hardware_info()
+usable <- switch(backend,
+    cuda = has_cuda(), metal = has_metal(),
+    rocm = has_rocm(), opencl = has_opencl()
+)
+if (!usable) stop("Expected backend '", backend, "' was not available")
 if (!has_gpu()) stop("No GPU was detected")
-if (!nrow(accelerator_info())) stop("No standardized accelerator was returned")
+if (!nrow(report$accelerators)) stop("No standardized accelerator was returned")
 
-caps <- gpu_capabilities()
 cat("\nCapabilities:\n")
-print(caps, row.names = FALSE)
+print(report$capabilities, row.names = FALSE)
 cat("\nVALIDATION PASSED\n")

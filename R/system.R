@@ -5,7 +5,7 @@
 #'
 #' @return A named list containing CPU model, architecture, logical core count,
 #'   vendor, and operating system.
-#' @export
+#' @noRd
 cpu_info <- function() {
     sys <- Sys.info()
     model <- vendor <- NA_character_

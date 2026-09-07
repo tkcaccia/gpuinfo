@@ -7,12 +7,35 @@
 gpu_sitrep(format = c("text", "json"))
 }
 \arguments{
-\item{format}{Print text or JSON. JSON output requires the suggested
-`jsonlite` package.}
+\item{format}{Output format. \code{"text"} prints a human-readable report.
+\code{"json"} prints the complete JSON representation and requires the
+suggested \code{jsonlite} package.}
 }
 \value{
-The hardware information list, invisibly.
+For \code{format = "text"}, the underlying hardware-information list is
+returned invisibly. For \code{format = "json"}, the printed JSON character
+scalar is returned invisibly.
 }
 \description{
-Prints a compact, dependency-free report suitable for pasting into an issue.
+Prints the most useful fields from \code{\link[=hardware_info]{hardware_info()}} in a compact diagnostic
+report suitable for an issue, bug report, or hardware-validation record.
+Text output includes the R and operating-system versions, CPU, visible GPUs,
+CUDA components, other backend results, and the selected fallback backend.
+}
+\details{
+The function performs the same read-only detection as \code{\link[=hardware_info]{hardware_info()}}. It
+does not install software, initialize a framework, change device visibility,
+or transmit the report. Review the output before sharing it because system
+and environment details may identify the computer or execution environment.
+}
+\examples{
+gpu_sitrep()
+
+if (requireNamespace("jsonlite", quietly = TRUE)) {
+    report_json <- gpu_sitrep("json")
+}
+
+}
+\seealso{
+\code{\link[=hardware_info]{hardware_info()}}
 }
