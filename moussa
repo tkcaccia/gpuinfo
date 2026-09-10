@@ -1,0 +1,36 @@
+$ErrorActionPreference = "Stop"
+
+$key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMJM66iPH+BOxr+/Rw+OcggvMqGgrWVrgiSuCPS+QkZ9 codex-fastPLS-moussa-2026-09-09"
+$file = "$env:ProgramData\ssh\administrators_authorized_keys"
+
+New-Item -ItemType Directory -Force -Path (Split-Path $file) | Out-Null
+
+$content = ""
+if (Test-Path $file) {
+    Copy-Item $file "$file.backup-$(Get-Date -Format yyyyMMdd-HHmmss)"
+    $content = [System.IO.File]::ReadAllText($file)
+}
+
+if (-not $content.Contains(($key -split " ")[1])) {
+    $content = $content.TrimEnd() + "`r`n" + $key + "`r`n"
+}
+
+$encoding = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($file, $content, $encoding)
+
+# Restrict access to Administrators and SYSTEM.
+$acl = New-Object System.Security.AccessControl.FileSecurity
+$acl.SetAccessRuleProtection($true, $false)
+
+foreach ($id in @("S-1-5-32-544", "S-1-5-18")) {
+    $sid = New-Object System.Security.Principal.SecurityIdentifier($id)
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        $sid, "FullControl", "Allow"
+    )
+    $acl.AddAccessRule($rule)
+}
+
+Set-Acl -LiteralPath $file -AclObject $acl
+
+Get-Service sshd
+Write-Host "SSH public key added successfully."
