@@ -6,7 +6,7 @@ dynamically queries CUDA, Metal, ROCm, and OpenCL libraries; portable
 operating-system and command probes provide fallbacks.
 
 ```r
-install.packages("gpuinfo") # once released on CRAN
+install.packages("gpuinfo")
 
 library(gpuinfo)
 
@@ -16,8 +16,21 @@ has_metal()
 has_rocm()
 has_opencl()
 
+cpu_info()
+system_memory_info()
+gpu_devices()
+cuda_info()
+cuda_libraries()
+nccl_info()
+cuda_build_info()
+cuda_preflight()
+gpu_memory_info()
+gpu_memory_sample()
+hardware_manifest()
+
 info <- hardware_info()
 info$cpu
+info$memory
 info$gpu
 info$cuda
 gpu_sitrep()
@@ -29,9 +42,41 @@ The package describes host capabilities, not whether a particular framework
 was built with GPU support. In particular:
 
 - `has_cuda()` means an NVIDIA GPU is visible through a working NVIDIA driver.
-- `hardware_info()$cuda` separately reports GPU, driver, local runtime,
-  Toolkit, and `nvcc` status. The CUDA version printed by `nvidia-smi` is labelled
-  `driver_supported_cuda_version`, because it is not the installed Toolkit.
+- `cpu_info()` reports identity, physical and logical topology, instruction-set
+  flags when available, and the cores available to the current process after
+  detectable container, affinity, or scheduler limits.
+- `system_memory_info()` reports host RAM, effective container limits, swap,
+  and resident memory for a selected process in bytes. Dynamic values are not
+  cached.
+- `cuda_info()` independently reports hardware visibility, driver loading and
+  initialization, runtime loading and initialization, Toolkit, `nvcc`,
+  component versions, and all visible devices. The CUDA version printed by
+  `nvidia-smi` is labelled `driver_supported_cuda_version`; it is not the
+  installed runtime or Toolkit.
+- `cuda_libraries()` returns one table for the CUDA driver, runtime, cuBLAS,
+  cuFFT, cuSOLVER, cuRAND, and NCCL. A positive row means the shared library is
+  loadable in the current process; it does not prove that development headers
+  or every symbol required by another package are available. cuVS and RAFT
+  remain the responsibility of their consuming package.
+- `nccl_info()` optionally loads NCCL and queries `ncclGetVersion()`, then
+  reports the process-visible CUDA device count. It never creates a
+  communicator, does not prove inter-GPU communication, and does not affect
+  `has_cuda()` or ordinary GPU availability.
+- `gpu_devices()` distinguishes process-visible CUDA ordinals from physical
+  `nvidia-smi` indices and reconciles them by UUID.
+- `cuda_build_info()` generates native, PTX, CMake, and `nvcc` architecture
+  settings without installing or changing CUDA.
+- `cuda_preflight()` returns structured diagnostics and remediation rather than
+  stopping by default.
+- `gpu_memory_info()` reports total, used, and free memory explicitly in bytes;
+  used and free memory are dynamic snapshots.
+- `gpu_memory_sample()` takes a non-cached, process-level sample suitable for
+  benchmark logs. CUDA uses the `nvidia-smi` compute-process table reconciled by
+  GPU UUID. Metal uses `MTLDevice.currentAllocatedSize` for the current R
+  process. Unsupported measurements are explicit `NA` values with reason codes.
+- `hardware_manifest()` records versioned CPU, host/effective RAM, device,
+  driver, runtime, Toolkit, optional NCCL information, environment, and
+  optional GPU-memory data as an R list or JSON.
 - `has_metal()` reports macOS hardware/OS Metal capability and does not inspect
   torch MPS support.
 - `has_rocm()` requires an AMD GPU plus an apparent usable ROCm runtime/driver.
@@ -41,9 +86,39 @@ was built with GPU support. In particular:
 All probes are defensive. Missing commands, drivers, files, or hardware return
 `FALSE`, empty data frames, or `NA` fields rather than errors.
 
+`gpuinfo` never detects FAISS, cuVS, ANN methods, or package-specific CUDA
+capabilities. The integration boundary is documented in
+`docs/FAISSR-INTEGRATION.md` in the source package.
+
 Detailed backend inspection in `hardware_info()` uses three states:
 `available`, `unavailable`, and `unknown`. Predicates remain strict scalar
 logicals; an unknown state is never silently promoted to `TRUE`.
+
+## NVIDIA library inventory
+
+Use one call to inspect the NVIDIA libraries that are commonly useful to
+GPU-enabled R packages:
+
+```r
+libraries <- cuda_libraries()
+libraries[, c("component", "loadable", "version", "library_path")]
+
+# The same table is included in the complete CUDA report.
+cuda_info()$libraries
+```
+
+The table covers the CUDA driver and runtime, cuBLAS, cuFFT, cuSOLVER, cuRAND,
+and NCCL. `loadable = TRUE` means the current R process successfully opened the
+shared library and its dynamic dependencies. It does not mean that development
+headers are installed or that a consuming package was compiled against that
+library. Only the driver row contributes to `has_cuda()`, together with driver
+initialization and a visible device.
+
+This division lets packages reuse generic discovery while retaining their own
+execution checks. For example, a consumer may use the runtime for kernels,
+cuFFT for transforms, cuBLAS/cuSOLVER/cuRAND for PCA, and NCCL for multi-GPU
+collectives. Higher-level dependencies such as cuVS and RAFT remain checks for
+that consumer because they are not evidence of general CUDA availability.
 
 ## Containers and schedulers
 
@@ -60,15 +135,17 @@ contains manually triggered workflows for labeled NVIDIA, AMD, and Intel
 self-hosted runners.
 Account setup, provider links, exact validation commands, credential handling,
 and cleanup procedures are recorded in the
-[hardware access and validation playbook](docs/HARDWARE-ACCESS.md).
+[hardware access and validation playbook](https://github.com/tkcaccia/gpuinfo/blob/main/docs/HARDWARE-ACCESS.md).
 
-The 0.1.0 release has been validated on Apple M3 Metal, NVIDIA Tesla T4 CUDA
-and OpenCL, Linux ARM64 CPU, and hosted Linux, Windows, and macOS CPU runners.
-ROCm on AMD hardware, OpenCL on Intel GPU hardware, and CUDA/OpenCL on Windows
-GPU hardware remain unvalidated in this release. Their defensive probes are
-included for early testing, but they are not represented as validated hardware
-support. Later releases will update this evidence only after real-device runs
-pass.
+The validation evidence for the 0.2.0 candidate covers Apple M3 Metal/OpenCL,
+NVIDIA Tesla T4 CUDA/OpenCL, NVIDIA RTX 5060 Ti CUDA 13.0 (including compute
+capability 12.0 build architecture), Intel OpenCL alongside that NVIDIA device,
+Linux ARM64 CPU, and hosted Linux, Windows, and macOS CPU runners.
+ROCm on AMD hardware and CUDA/OpenCL on Windows GPU hardware remain
+unvalidated. Intel OpenCL evidence is limited to the Linux device listed
+above. Other defensive probes are included for early testing, but they are not
+represented as validated hardware support. Later releases will update this
+evidence only after real-device runs pass.
 
 ## License
 

@@ -4,12 +4,18 @@
 #include <R_ext/Visibility.h>
 
 extern SEXP gpuinfo_cuda_probe(void);
+extern SEXP gpuinfo_cudart_probe(SEXP);
+extern SEXP gpuinfo_library_probe(SEXP);
+extern SEXP gpuinfo_nccl_probe(SEXP);
 extern SEXP gpuinfo_opencl_probe(void);
 extern SEXP gpuinfo_metal_probe(void);
 extern SEXP gpuinfo_rocm_probe(void);
 
 static const R_CallMethodDef call_methods[] = {
     {"gpuinfo_cuda_probe", (DL_FUNC) &gpuinfo_cuda_probe, 0},
+    {"gpuinfo_cudart_probe", (DL_FUNC) &gpuinfo_cudart_probe, 1},
+    {"gpuinfo_library_probe", (DL_FUNC) &gpuinfo_library_probe, 1},
+    {"gpuinfo_nccl_probe", (DL_FUNC) &gpuinfo_nccl_probe, 1},
     {"gpuinfo_opencl_probe", (DL_FUNC) &gpuinfo_opencl_probe, 0},
     {"gpuinfo_metal_probe", (DL_FUNC) &gpuinfo_metal_probe, 0},
     {"gpuinfo_rocm_probe", (DL_FUNC) &gpuinfo_rocm_probe, 0},

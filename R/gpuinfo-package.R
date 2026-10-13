@@ -5,10 +5,16 @@
 #' does not require Python, a machine-learning framework, or a vendor SDK.
 #'
 #' @section Public API:
-#' The package intentionally exposes only seven functions. Use
-#' [hardware_info()] for the complete structured report, [gpu_sitrep()] for a
-#' human-readable diagnostic report, and [has_gpu()], [has_cuda()],
-#' [has_metal()], [has_rocm()], or [has_opencl()] for strict scalar checks.
+#' Use [hardware_info()] for the complete structured report, [cpu_info()] and
+#' [system_memory_info()] for CPU and RAM resources, [gpu_sitrep()] for
+#' a printable diagnostic object, [gpu_devices()] and [gpu_memory_info()] for
+#' device tables, [gpu_memory_sample()] for process-level benchmark samples,
+#' [hardware_manifest()] for reusable benchmark provenance, and
+#' [cuda_info()], [cuda_libraries()], [cuda_build_info()], and
+#' [cuda_preflight()] for provider-independent CUDA diagnostics, and
+#' [nccl_info()] for optional NCCL library/version inspection. The
+#' [has_gpu()], [has_cuda()], [has_metal()], [has_rocm()], and [has_opencl()]
+#' functions provide strict scalar checks.
 #'
 #' @section Interpretation:
 #' A positive backend predicate means that `gpuinfo` found the relevant visible

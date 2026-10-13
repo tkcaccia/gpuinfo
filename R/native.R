@@ -1,9 +1,36 @@
 .gpuinfo_native_cuda <- function() {
     tryCatch(.Call(C_gpuinfo_cuda_probe), error = function(e) list(
-        library = FALSE, initialized = FALSE, count = 0L,
-        driver_version = NA_integer_, names = character(),
-        memory_mb = numeric(), compute_capability = character()
+        library = FALSE, initialized = FALSE, init_status = NA_integer_,
+        count_status = NA_integer_, count = 0L, driver_version = NA_integer_,
+        names = character(), memory_bytes = numeric(), memory_mb = numeric(),
+        compute_capability_major = integer(),
+        compute_capability_minor = integer(), compute_capability = character(),
+        uuids = character()
     ))
+}
+
+.gpuinfo_native_cudart <- function(candidates) {
+    tryCatch(.Call(C_gpuinfo_cudart_probe, as.character(candidates)),
+        error = function(e) list(
+            library = FALSE, library_path = NA_character_,
+            version_query_status = NA_integer_, runtime_version = NA_integer_,
+            initialized = FALSE, init_status = NA_integer_, device_count = 0L
+        ))
+}
+
+.gpuinfo_native_library <- function(candidates) {
+    tryCatch(.Call(C_gpuinfo_library_probe, as.character(candidates)),
+        error = function(e) list(
+            loadable = FALSE, library_path = NA_character_
+        ))
+}
+
+.gpuinfo_native_nccl <- function(candidates) {
+    tryCatch(.Call(C_gpuinfo_nccl_probe, as.character(candidates)),
+        error = function(e) list(
+            library = FALSE, library_path = NA_character_,
+            version_status = NA_integer_, version_integer = NA_integer_
+        ))
 }
 
 .gpuinfo_native_opencl <- function() {
@@ -16,7 +43,9 @@
 
 .gpuinfo_native_metal <- function() {
     tryCatch(.Call(C_gpuinfo_metal_probe), error = function(e) list(
-        framework = FALSE, device = FALSE
+        framework = FALSE, device = FALSE,
+        allocation_query_supported = FALSE,
+        current_allocated_size = NA_real_
     ))
 }
 

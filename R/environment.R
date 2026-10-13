@@ -46,13 +46,14 @@ visible_devices <- function() {
     stats::setNames(unname(values), variables)
 }
 
-# GPU device identifiers and counts used internally.
-gpu_devices <- function() gpu_info()$id
+# GPU device identifiers used internally.  The public gpu_devices() function
+# returns the full device table.
+gpu_device_ids <- function() gpu_info()$id
 
 available_gpu_count <- function() gpu_count()
 
 physical_gpu_count <- function() {
-    smi <- .cuda_smi_rows()
+    smi <- .cuda_smi_devices()
     if (nrow(smi)) return(as.integer(nrow(smi)))
     if (identical(Sys.info()[["sysname"]], "Darwin")) return(gpu_count())
     NA_integer_

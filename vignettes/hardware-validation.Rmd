@@ -33,11 +33,74 @@ hardware_info()
 gpu_sitrep()
 ```
 
+CPU and RAM are available independently of GPU backends:
+
+```{r host-resources, eval=FALSE}
+cpu_info()
+system_memory_info()
+hardware_info()$gpu_summary
+```
+
+`available_cores` and effective-memory fields account for detectable process,
+container, and scheduler limits. They remain separate from host totals. A
+multi-GPU flag means multiple devices are visible; it does not prove that
+another R package can distribute work across them.
+
 All probes are defensive. Missing hardware, commands, drivers, or libraries
 produce `FALSE`, empty results, or `NA` fields instead of an installation or
 runtime error. Detailed backend information distinguishes `available`,
 `unavailable`, and `unknown`; convenience predicates only return `TRUE` for a
 confirmed usable backend.
+
+## Benchmark memory and manifests
+
+Version 0.2.0 separates device-wide memory from process-level memory:
+
+```{r benchmark-memory, eval=FALSE}
+device_memory <- gpu_memory_info()
+before <- gpu_memory_sample()
+
+# Run GPU work here. Synchronize with the framework before sampling if the
+# operation is asynchronous.
+
+after <- gpu_memory_sample()
+manifest <- hardware_manifest(memory = "process")
+```
+
+`gpu_memory_info()` reports the device-wide total, used, and free values that
+the available system probe exposes. `gpu_memory_sample()` instead produces one
+timestamped row per process-visible device. Repeated calls can be combined into
+a benchmark time series; the function does not run a background thread and
+does not force asynchronous GPU work to finish.
+
+For CUDA, memory is the value in `nvidia-smi`'s compute-process table for the
+requested PID, reconciled to the CUDA-visible device by UUID. It is current,
+driver-attributed allocation rather than a peak. Windows WDDM drivers may not
+expose it, in which case the result is `NA` with a reason code. A successful
+query with no row for the process is zero bytes and `not_active`.
+
+For Metal, memory is `MTLDevice.currentAllocatedSize` for the current R process.
+It measures current Metal resource allocations, not resident memory, peak
+memory, total unified memory, or allocations by other processes. The Metal API
+used here cannot inspect an arbitrary PID. Unsupported measurements remain
+`NA`; `gpuinfo` never estimates them from total memory.
+
+`hardware_manifest()` packages CPU topology, host/effective RAM,
+process-visible devices, CUDA driver,
+runtime, Toolkit and compiler state, optional NCCL library/version information,
+other generic backends, measurement rules,
+and an optional memory sample into a schema-versioned list or JSON record.
+
+The consolidated `cuda_libraries()` table reports whether the current process
+can dynamically load the CUDA driver, runtime, cuBLAS, cuFFT, cuSOLVER, cuRAND,
+and NCCL. Loading is a discovery check, not an execution test: no BLAS handle,
+FFT plan, solver, random generator, or NCCL communicator is created. Higher
+level dependencies such as cuVS and RAFT remain consumer-package checks.
+
+`nccl_info()` is deliberately a lightweight discovery probe. It loads the
+shared library and calls `ncclGetVersion()` when available, but never creates a
+communicator. Its CUDA device count describes process visibility only; it is
+not evidence that collective communication works.
 
 ## Evidence shipped with this release
 
@@ -50,21 +113,25 @@ library(gpuinfo)
 hardware_info()$validation
 ```
 
-For version 0.1.0, real GPU validation covers:
+The real-device evidence for the version 0.2.0 candidate covers:
 
-- Apple M3 with Metal on macOS;
-- NVIDIA Tesla T4 with CUDA on Linux; and
+- Apple M3 with Metal and OpenCL on macOS;
+- NVIDIA Tesla T4 with CUDA on Linux;
 - NVIDIA Tesla T4 OpenCL enumeration and CUDA/OpenCL physical-device
-  deduplication on Linux.
+  deduplication on Linux;
+- NVIDIA RTX 5060 Ti with CUDA 13.0, compute capability 12.0, `sm_120` native
+  code and `compute_120` PTX build settings on Ubuntu 22.04.5; and
+- Intel OpenCL enumeration alongside the NVIDIA device on the same Linux host.
 
 Linux ARM64 validates the CPU path and native package compilation. Hosted
 Linux, Windows, Intel macOS, and Apple Silicon macOS jobs exercise package
 installation, tests, and no-GPU behavior. A hosted Windows CPU runner is not
 evidence of Windows NVIDIA support.
 
-AMD ROCm, Intel GPU OpenCL, and Windows NVIDIA CUDA/OpenCL remain unvalidated
-for version 0.1.0. Their probes are available for early testing but are not
-represented as validated hardware support.
+AMD ROCm and Windows NVIDIA CUDA/OpenCL remain unvalidated for this candidate.
+Intel OpenCL evidence is limited to the one Linux device listed above. Other
+probes are available for early testing but are not represented as validated
+hardware support.
 
 ## Reproducing a real-hardware run
 
@@ -75,7 +142,9 @@ Use a clean public commit so the tested source is recoverable. Replace
 git clone https://github.com/tkcaccia/gpuinfo.git
 cd gpuinfo
 git rev-parse HEAD
-R CMD INSTALL .
+R CMD build .
+shasum -a 256 gpuinfo_*.tar.gz
+R CMD INSTALL gpuinfo_*.tar.gz
 Rscript tools/validate-hardware.R BACKEND | tee validation-output.txt
 ```
 

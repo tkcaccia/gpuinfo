@@ -6,8 +6,10 @@ no-hardware CI are useful tests, but are not presented as hardware validation.
 | Platform | Hardware | OS | Backend | Status |
 |---|---|---|---|---|
 | Apple | Apple M3 | macOS 14.5 | Metal | Validated locally |
-| Apple | Apple M3 | macOS 14.5 | OpenCL | Loader/platform found; no compute device enumerated |
+| Apple | Apple M3 | macOS 14.5 | OpenCL | Validated locally |
 | NVIDIA | Tesla T4 | Amazon Linux host / Ubuntu 22.04 container | CUDA 12.6 | Validated on Hugging Face Jobs |
+| NVIDIA | GeForce RTX 5060 Ti | Ubuntu 22.04.5 | CUDA 13.0 | Validated on dedicated Linux host |
+| Intel | Device a780 | Ubuntu 22.04.5 | OpenCL | Validated alongside NVIDIA device |
 | NVIDIA | A10G | Windows | CUDA/OpenCL | Pending cloud run |
 | AMD | MI300X or Radeon Pro V710 | Linux | ROCm | Pending cloud run |
 | Intel | Arc/iGPU | Linux | OpenCL | Pending hardware access |
@@ -27,3 +29,12 @@ GPU is reported exactly once while CUDA and OpenCL remain available; see job
 
 The Linux ARM64 package build and test run is preserved in GitHub Actions run
 [33967507957](https://github.com/tkcaccia/gpuinfo/actions/runs/33967507957).
+
+The version 0.2.0 candidate was also validated from one source archive on an
+Apple M3 and an Ubuntu 22.04.5 host. The NVIDIA run detected an RTX 5060 Ti by
+UUID with compute capability 12.0 and 16,610,820,096 bytes of memory. CUDA
+driver and runtime initialization succeeded; CUDA Toolkit 13.0 `nvcc` reported
+support for architecture 120, and `cuda_build_info()` produced `sm_120`,
+`compute_120`, CMake real/virtual architecture values, and matching `-gencode`
+flags. The same host enumerated its Intel OpenCL GPU separately and correctly
+preserved NVIDIA/Intel vendor identities.

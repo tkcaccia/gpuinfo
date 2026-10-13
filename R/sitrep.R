@@ -1,7 +1,7 @@
 #' Collect hardware information
 #'
-#' Creates a single structured snapshot of the CPU, visible GPUs, compute
-#' backends, execution environment, and validation evidence. This is the main
+#' Creates a single structured snapshot of the CPU, system memory, visible
+#' GPUs, compute backends, execution environment, and validation evidence. This is the main
 #' entry point when more detail than the `has_*()` predicates is required.
 #'
 #' Detection is read-only and framework-independent. It describes the hardware
@@ -13,7 +13,7 @@
 #' @param as Output representation. `"list"` returns native R objects.
 #'   `"json"` returns a pretty-printed JSON character scalar and requires the
 #'   suggested `jsonlite` package. Missing values become JSON `null` values.
-#' @return A nested list containing R, system, CPU, GPU, backend, environment,
+#' @return A nested list containing R, system, CPU, memory, GPU, backend, environment,
 #'   and package-validation details when `as = "list"`; otherwise a JSON
 #'   character scalar containing the same information.
 #'
@@ -22,17 +22,27 @@
 #' \describe{
 #'   \item{r}{R version and platform.}
 #'   \item{system}{Operating-system name, release, version, and architecture.}
-#'   \item{cpu}{CPU model, vendor, architecture, logical-core count, and OS.}
+#'   \item{cpu}{CPU identity, topology, process-available cores, features,
+#'     detection source, status, and reason codes.}
+#'   \item{memory}{Host, effective container, swap, and selected-process memory,
+#'     in bytes. Dynamic values are sampled on each call.}
 #'   \item{gpu}{One row per detected visible GPU, including device id, vendor,
 #'     model, reported memory, backend, and NVIDIA compute capability when
-#'     known. An empty data frame means that no visible GPU was detected.}
+#'     known. This compact table is retained for compatibility.}
+#'   \item{gpu_devices}{Detailed process-visible and physical device rows with
+#'     UUIDs, visibility, byte-based memory, and CUDA architecture.}
+#'   \item{gpu_summary}{Visible and physical device counts plus a multi-GPU
+#'     visibility flag. It does not claim package-specific multi-GPU execution.}
 #'   \item{accelerators}{A vendor-neutral accelerator table with memory and
 #'     backend-status information.}
 #'   \item{capabilities}{Per-device precision, memory, and backend capability
 #'     information. Unknown capabilities are represented by `NA`.}
 #'   \item{cuda}{NVIDIA GPU, driver, runtime, Toolkit, `nvcc`, versions, and
-#'     apparent CUDA usability. The CUDA version advertised by `nvidia-smi` is
-#'     a driver-supported maximum, not necessarily an installed Toolkit.}
+#'     shared-library inventory, plus apparent CUDA usability. The CUDA version
+#'     advertised by `nvidia-smi` is a driver-supported maximum, not necessarily
+#'     an installed Toolkit.}
+#'   \item{nccl}{Optional NCCL shared-library loading and version information,
+#'     plus the process-visible CUDA device count. No communicator is created.}
 #'   \item{metal}{macOS platform, Apple silicon, device, framework, support,
 #'     and apparent Metal usability.}
 #'   \item{rocm}{AMD GPU, kernel driver, runtime, utilities, version, and
@@ -65,15 +75,20 @@
 #' @export
 hardware_info <- function(as = c("list", "json")) {
     as <- match.arg(as)
+    devices <- gpu_devices()
     answer <- list(
         r = list(version = paste(R.version$major, R.version$minor, sep = "."),
                  platform = R.version$platform),
         system = as.list(Sys.info()[c("sysname", "release", "version", "machine")]),
         cpu = cpu_info(),
+        memory = system_memory_info(),
         gpu = gpu_info(),
+        gpu_devices = devices,
+        gpu_summary = .gpuinfo_gpu_summary(devices),
         accelerators = accelerator_info(),
         capabilities = gpu_capabilities(),
         cuda = cuda_info(),
+        nccl = nccl_info(),
         metal = metal_info(),
         rocm = rocm_info(),
         opencl = opencl_info(),
@@ -90,49 +105,79 @@ hardware_info <- function(as = c("list", "json")) {
     answer
 }
 
-#' Print a GPU diagnostic report
+.gpuinfo_gpu_summary <- function(devices = gpu_devices()) {
+    visible <- if (nrow(devices)) sum(devices$process_visible %in% TRUE) else 0L
+    physical <- if (nrow(devices)) {
+        keys <- ifelse(!is.na(devices$uuid) & nzchar(devices$uuid), devices$uuid,
+                       paste(devices$vendor, devices$model, devices$physical_id, sep = ":"))
+        length(unique(keys))
+    } else 0L
+    list(visible_device_count = as.integer(visible),
+         physical_device_count = as.integer(physical),
+         multiple_visible_devices = visible > 1L)
+}
+
+#' Create a GPU diagnostic report
 #'
-#' Prints the most useful fields from [hardware_info()] in a compact diagnostic
-#' report suitable for an issue, bug report, or hardware-validation record.
-#' Text output includes the R and operating-system versions, CPU, visible GPUs,
-#' CUDA components, other backend results, and the selected fallback backend.
+#' Creates a structured diagnostic report suitable for an issue, bug report,
+#' or hardware-validation record. When printed, the report includes the R and
+#' operating-system versions, CPU, visible GPUs, CUDA components, other backend
+#' results, and the selected fallback backend.
 #'
 #' The function performs the same read-only detection as [hardware_info()]. It
 #' does not install software, initialize a framework, change device visibility,
 #' or transmit the report. Review the output before sharing it because system
 #' and environment details may identify the computer or execution environment.
 #'
-#' @param format Output format. `"text"` prints a human-readable report.
-#'   `"json"` prints the complete JSON representation and requires the
-#'   suggested `jsonlite` package.
-#' @return For `format = "text"`, the underlying hardware-information list is
-#'   returned invisibly. For `format = "json"`, the printed JSON character
-#'   scalar is returned invisibly.
+#' @param format Format used by the object's [print()] method. `"text"` displays
+#'   a human-readable report. `"json"` displays the complete JSON representation
+#'   and requires the suggested `jsonlite` package.
+#' @return A visible `gpuinfo_sitrep` object containing the structured output of
+#'   [hardware_info()]. The object can be inspected with normal list operations;
+#'   assigning it to a variable produces no console output.
 #'
 #' @examples
-#' gpu_sitrep()
+#' report <- gpu_sitrep()
+#' report$cpu$vendor
+#' print(report)
 #'
 #' if (requireNamespace("jsonlite", quietly = TRUE)) {
-#'     report_json <- gpu_sitrep("json")
+#'     print(gpu_sitrep("json"))
 #' }
 #'
 #' @seealso [hardware_info()]
 #' @export
 gpu_sitrep <- function(format = c("text", "json")) {
     format <- match.arg(format)
-    if (format == "json") {
-        value <- hardware_info("json")
-        cat(value, "\n")
-        return(invisible(value))
-    }
     x <- hardware_info()
+    if (format == "json" && !requireNamespace("jsonlite", quietly = TRUE))
+        stop("Install the suggested package 'jsonlite' for JSON output.", call. = FALSE)
+    attr(x, "format") <- format
+    class(x) <- c("gpuinfo_sitrep", class(x))
+    x
+}
+
+#' @export
+print.gpuinfo_sitrep <- function(x, ...) {
+    format <- attr(x, "format", exact = TRUE)
+    if (identical(format, "json")) {
+        value <- unclass(x)
+        attr(value, "format") <- NULL
+        cat(jsonlite::toJSON(value, auto_unbox = TRUE, pretty = TRUE, na = "null"), "\n")
+        return(invisible(x))
+    }
     gpu <- x$gpu
     cat("gpuinfo diagnostic report\n", "-------------------------\n\n", sep = "")
     cat("R:\n  version: ", x$r$version, "\n  platform: ", x$r$platform, "\n\n", sep = "")
     cat("System:\n  OS: ", x$system$sysname, " ", x$system$release,
         "\n  architecture: ", x$system$machine, "\n", sep = "")
     cat("  CPU: ", ifelse(is.na(x$cpu$model), "unknown", x$cpu$model),
-        "\n  logical cores: ", x$cpu$logical_cores, "\n\n", sep = "")
+        "\n  logical/physical/available cores: ", x$cpu$logical_cores, "/",
+        x$cpu$physical_cores, "/", x$cpu$available_cores, "\n", sep = "")
+    memory_gib <- x$memory$total_memory_bytes / 1024^3
+    cat("  RAM: ", ifelse(is.finite(memory_gib),
+                           paste0(format(round(memory_gib, 2), trim = TRUE), " GiB"),
+                           "unknown"), "\n\n", sep = "")
     cat("GPU:\n")
     if (!nrow(gpu)) {
         cat("  none detected\n\n")
@@ -152,6 +197,13 @@ gpu_sitrep <- function(format = c("text", "json")) {
         "  toolkit: ", .gpuinfo_yesno(x$cuda$toolkit), "\n",
         "  nvcc: ", .gpuinfo_yesno(x$cuda$nvcc), "\n",
         "  usable: ", .gpuinfo_yesno(x$cuda$usable), "\n\n", sep = "")
+    cat("NCCL:\n",
+        "  library: ", .gpuinfo_yesno(x$nccl$library), "\n",
+        "  version: ", ifelse(is.na(x$nccl$version), "unknown", x$nccl$version), "\n",
+        "  visible CUDA devices: ", x$nccl$visible_cuda_device_count,
+        "\n  communication tested: no\n\n", sep = "")
+    cat("CUDA libraries: ", sum(x$cuda$libraries$loadable), "/",
+        nrow(x$cuda$libraries), " loadable\n", sep = "")
     cat("Metal: ", .gpuinfo_yesno(x$metal$usable), "\n", sep = "")
     cat("ROCm: ", .gpuinfo_yesno(x$rocm$usable), "\n", sep = "")
     cat("OpenCL: ", .gpuinfo_yesno(x$opencl$available), "\n", sep = "")

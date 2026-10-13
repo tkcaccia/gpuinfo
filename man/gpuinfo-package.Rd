@@ -12,10 +12,16 @@ does not require Python, a machine-learning framework, or a vendor SDK.
 }
 \section{Public API}{
 
-The package intentionally exposes only seven functions. Use
-\code{\link[=hardware_info]{hardware_info()}} for the complete structured report, \code{\link[=gpu_sitrep]{gpu_sitrep()}} for a
-human-readable diagnostic report, and \code{\link[=has_gpu]{has_gpu()}}, \code{\link[=has_cuda]{has_cuda()}},
-\code{\link[=has_metal]{has_metal()}}, \code{\link[=has_rocm]{has_rocm()}}, or \code{\link[=has_opencl]{has_opencl()}} for strict scalar checks.
+Use \code{\link[=hardware_info]{hardware_info()}} for the complete structured report, \code{\link[=cpu_info]{cpu_info()}} and
+\code{\link[=system_memory_info]{system_memory_info()}} for CPU and RAM resources, \code{\link[=gpu_sitrep]{gpu_sitrep()}} for
+a printable diagnostic object, \code{\link[=gpu_devices]{gpu_devices()}} and \code{\link[=gpu_memory_info]{gpu_memory_info()}} for
+device tables, \code{\link[=gpu_memory_sample]{gpu_memory_sample()}} for process-level benchmark samples,
+\code{\link[=hardware_manifest]{hardware_manifest()}} for reusable benchmark provenance, and
+\code{\link[=cuda_info]{cuda_info()}}, \code{\link[=cuda_libraries]{cuda_libraries()}}, \code{\link[=cuda_build_info]{cuda_build_info()}}, and
+\code{\link[=cuda_preflight]{cuda_preflight()}} for provider-independent CUDA diagnostics, and
+\code{\link[=nccl_info]{nccl_info()}} for optional NCCL library/version inspection. The
+\code{\link[=has_gpu]{has_gpu()}}, \code{\link[=has_cuda]{has_cuda()}}, \code{\link[=has_metal]{has_metal()}}, \code{\link[=has_rocm]{has_rocm()}}, and \code{\link[=has_opencl]{has_opencl()}}
+functions provide strict scalar checks.
 }
 
 \section{Interpretation}{

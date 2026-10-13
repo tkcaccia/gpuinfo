@@ -7,26 +7,18 @@
 has_cuda()
 }
 \value{
-One non-missing logical value: \code{TRUE} when CUDA appears usable,
-otherwise \code{FALSE}.
+One non-missing logical value.
 }
 \description{
-Returns \code{TRUE} when an NVIDIA GPU is visible through an apparently working
-NVIDIA driver. Detection uses a dynamically loaded CUDA driver library and,
-when available, read-only \code{nvidia-smi} queries.
-}
-\details{
-The CUDA Toolkit and \code{nvcc} compiler are not required: applications can use
-a GPU through a driver and a bundled runtime without a local Toolkit. A
-positive result does not imply that torch, TensorFlow, or another R package
-was built with CUDA support. Inspect \code{hardware_info()$cuda} to distinguish
-GPU, driver, runtime, Toolkit, compiler, and version information.
+Returns \code{TRUE} only when at least one CUDA device is visible to the current
+process through a successfully initialized NVIDIA CUDA driver. The CUDA
+runtime, Toolkit, \code{nvcc}, FAISS, cuVS, and machine-learning frameworks are
+independent and are not required.
 }
 \examples{
 has_cuda()
-hardware_info()$cuda
-
+cuda_info()$devices
 }
 \seealso{
-\code{\link[=hardware_info]{hardware_info()}}, \code{\link[=has_gpu]{has_gpu()}}
+\code{\link[=cuda_info]{cuda_info()}}, \code{\link[=hardware_info]{hardware_info()}}, \code{\link[=has_gpu]{has_gpu()}}
 }

@@ -2,25 +2,25 @@
 % Please edit documentation in R/sitrep.R
 \name{gpu_sitrep}
 \alias{gpu_sitrep}
-\title{Print a GPU diagnostic report}
+\title{Create a GPU diagnostic report}
 \usage{
 gpu_sitrep(format = c("text", "json"))
 }
 \arguments{
-\item{format}{Output format. \code{"text"} prints a human-readable report.
-\code{"json"} prints the complete JSON representation and requires the
-suggested \code{jsonlite} package.}
+\item{format}{Format used by the object's \code{\link[=print]{print()}} method. \code{"text"} displays
+a human-readable report. \code{"json"} displays the complete JSON representation
+and requires the suggested \code{jsonlite} package.}
 }
 \value{
-For \code{format = "text"}, the underlying hardware-information list is
-returned invisibly. For \code{format = "json"}, the printed JSON character
-scalar is returned invisibly.
+A visible \code{gpuinfo_sitrep} object containing the structured output of
+\code{\link[=hardware_info]{hardware_info()}}. The object can be inspected with normal list operations;
+assigning it to a variable produces no console output.
 }
 \description{
-Prints the most useful fields from \code{\link[=hardware_info]{hardware_info()}} in a compact diagnostic
-report suitable for an issue, bug report, or hardware-validation record.
-Text output includes the R and operating-system versions, CPU, visible GPUs,
-CUDA components, other backend results, and the selected fallback backend.
+Creates a structured diagnostic report suitable for an issue, bug report,
+or hardware-validation record. When printed, the report includes the R and
+operating-system versions, CPU, visible GPUs, CUDA components, other backend
+results, and the selected fallback backend.
 }
 \details{
 The function performs the same read-only detection as \code{\link[=hardware_info]{hardware_info()}}. It
@@ -29,10 +29,12 @@ or transmit the report. Review the output before sharing it because system
 and environment details may identify the computer or execution environment.
 }
 \examples{
-gpu_sitrep()
+report <- gpu_sitrep()
+report$cpu$vendor
+print(report)
 
 if (requireNamespace("jsonlite", quietly = TRUE)) {
-    report_json <- gpu_sitrep("json")
+    print(gpu_sitrep("json"))
 }
 
 }

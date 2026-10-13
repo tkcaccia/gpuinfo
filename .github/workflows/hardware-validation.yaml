@@ -22,7 +22,9 @@ jobs:
       - name: Install and validate CUDA
         shell: bash
         run: |
-          R CMD INSTALL .
+          R CMD build .
+          sha256sum gpuinfo_*.tar.gz
+          R CMD INSTALL gpuinfo_*.tar.gz
           Rscript tools/validate-hardware.R cuda | tee validation-output.txt
       - uses: actions/upload-artifact@v4
         if: always()
@@ -39,7 +41,9 @@ jobs:
       - name: Install and validate ROCm
         shell: bash
         run: |
-          R CMD INSTALL .
+          R CMD build .
+          sha256sum gpuinfo_*.tar.gz
+          R CMD INSTALL gpuinfo_*.tar.gz
           Rscript tools/validate-hardware.R rocm | tee validation-output.txt
       - uses: actions/upload-artifact@v4
         if: always()
@@ -56,7 +60,9 @@ jobs:
       - name: Install and validate OpenCL
         shell: bash
         run: |
-          R CMD INSTALL .
+          R CMD build .
+          sha256sum gpuinfo_*.tar.gz
+          R CMD INSTALL gpuinfo_*.tar.gz
           Rscript tools/validate-hardware.R opencl | tee validation-output.txt
       - uses: actions/upload-artifact@v4
         if: always()

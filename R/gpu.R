@@ -5,9 +5,7 @@
     lines <- result$output[grepl("VGA compatible controller|3D controller|Display controller", result$output, ignore.case = TRUE)]
     if (!length(lines)) return(.gpuinfo_empty_gpus())
     model <- trimws(sub("^.*(?:VGA compatible controller|3D controller|Display controller):\\s*", "", lines, perl = TRUE, ignore.case = TRUE))
-    vendor <- ifelse(grepl("NVIDIA", model, ignore.case = TRUE), "NVIDIA",
-        ifelse(grepl("AMD|ATI|Advanced Micro Devices", model, ignore.case = TRUE), "AMD",
-            ifelse(grepl("Intel", model, ignore.case = TRUE), "Intel", NA_character_)))
+    vendor <- .gpuinfo_gpu_vendor(model)
     backend <- ifelse(vendor == "NVIDIA" & has_cuda(), "cuda",
         ifelse(vendor == "AMD" & has_rocm(), "rocm", NA_character_))
     backend[is.na(backend) & !is.na(vendor) & has_opencl()] <- "opencl"
@@ -18,25 +16,47 @@
 
 .gpu_generic_windows <- function() {
     if (!identical(Sys.info()[["sysname"]], "Windows")) return(.gpuinfo_empty_gpus())
-    result <- .gpuinfo_command("wmic", c("path", "win32_VideoController", "get", "Name,AdapterRAM", "/format:csv"))
-    if (!result$ok) return(.gpuinfo_empty_gpus())
-    lines <- result$output[grepl(",", result$output, fixed = TRUE)]
-    lines <- lines[!grepl("AdapterRAM", lines, fixed = TRUE)]
-    if (!length(lines)) return(.gpuinfo_empty_gpus())
-    parsed <- lapply(lines, function(line) trimws(strsplit(line, ",", fixed = TRUE)[[1L]]))
-    parsed <- parsed[lengths(parsed) >= 3L]
-    if (!length(parsed)) return(.gpuinfo_empty_gpus())
-    models <- vapply(parsed, function(x) utils::tail(x, 1L), character(1L))
-    bytes <- suppressWarnings(as.numeric(vapply(parsed, function(x) x[[length(x) - 1L]], character(1L))))
-    vendor <- ifelse(grepl("NVIDIA", models, ignore.case = TRUE), "NVIDIA",
-        ifelse(grepl("AMD|Radeon", models, ignore.case = TRUE), "AMD",
-            ifelse(grepl("Intel", models, ignore.case = TRUE), "Intel", NA_character_)))
+    command <- paste(
+        "$x=Get-CimInstance Win32_VideoController;",
+        "$x|ForEach-Object {([string]$_.AdapterRAM)+'|'+([string]$_.Name)}")
+    result <- .gpuinfo_command("powershell", c("-NoProfile", "-NonInteractive", "-Command", command), timeout = 10L)
+    parsed <- if (result$ok) .gpuinfo_parse_windows_gpus(result$output, "|") else NULL
+    if (is.null(parsed) || !length(parsed$model)) {
+        result <- .gpuinfo_command("wmic", c("path", "win32_VideoController", "get",
+                                              "Name,AdapterRAM", "/format:csv"))
+        parsed <- if (result$ok) .gpuinfo_parse_windows_gpus(result$output, ",") else NULL
+    }
+    if (is.null(parsed) || !length(parsed$model)) return(.gpuinfo_empty_gpus())
+    models <- parsed$model
+    bytes <- parsed$bytes
+    vendor <- .gpuinfo_gpu_vendor(models)
     backend <- ifelse(vendor == "NVIDIA" & has_cuda(), "cuda",
         ifelse(vendor == "AMD" & has_rocm(), "rocm",
             ifelse(!is.na(vendor) & has_opencl(), "opencl", NA_character_)))
     data.frame(id = seq_along(models) - 1L, vendor = vendor, model = models,
         memory_mb = bytes / 1024^2, backend = backend, compute_capability = NA_character_,
         stringsAsFactors = FALSE)
+}
+
+.gpuinfo_parse_windows_gpus <- function(lines, separator = "|") {
+    lines <- lines[grepl(separator, lines, fixed = TRUE)]
+    lines <- lines[!grepl("AdapterRAM", lines, fixed = TRUE)]
+    parsed <- lapply(lines, function(line) trimws(strsplit(line, separator, fixed = TRUE)[[1L]]))
+    parsed <- parsed[lengths(parsed) >= 2L]
+    if (!length(parsed)) return(list(model = character(), bytes = numeric()))
+    list(
+        model = vapply(parsed, function(x) utils::tail(x, 1L), character(1L)),
+        bytes = suppressWarnings(as.numeric(vapply(
+            parsed, function(x) x[[length(x) - 1L]], character(1L))))
+    )
+}
+
+.gpuinfo_gpu_vendor <- function(model) {
+    ifelse(grepl("\\bNVIDIA\\b", model, perl = TRUE, ignore.case = TRUE), "NVIDIA",
+        ifelse(grepl("\\bAMD\\b|\\bATI\\b|Advanced Micro Devices|\\bRadeon\\b",
+                     model, perl = TRUE, ignore.case = TRUE), "AMD",
+            ifelse(grepl("\\bIntel\\b", model, perl = TRUE, ignore.case = TRUE),
+                   "Intel", NA_character_)))
 }
 
 #' Detect graphics processors
@@ -78,6 +98,56 @@ gpu_info <- function() {
     gpus
 }
 
+#' List detected GPU devices
+#'
+#' Returns process-visible CUDA devices and, when `nvidia-smi` is available,
+#' physical NVIDIA devices that are not visible to the current process. CUDA
+#' driver and `nvidia-smi` records are reconciled only by UUID. Other vendors
+#' are reported through the available native or operating-system probes.
+#'
+#' @param refresh Re-run cached static CUDA discovery used while constructing
+#'   the device report. Dynamic NVIDIA memory values are always queried again.
+#' @return A data frame with one row per detected device. Memory values are
+#'   bytes. `logical_id` is the CUDA process-visible ordinal; `physical_id` is
+#'   the `nvidia-smi` index and may differ after visibility filtering or
+#'   reordering. `visibility_status` distinguishes process-visible devices from
+#'   physical-only observations.
+#' @export
+gpu_devices <- function(refresh = FALSE) {
+    cuda <- cuda_info(refresh = refresh)$devices
+    legacy <- gpu_info()
+    legacy <- legacy[is.na(legacy$vendor) | legacy$vendor != "NVIDIA", , drop = FALSE]
+    if (nrow(legacy)) {
+        parts <- .cuda_capability_parts(legacy$compute_capability)
+        other <- data.frame(
+            logical_id = legacy$id, physical_id = rep(NA_integer_, nrow(legacy)),
+            uuid = rep(NA_character_, nrow(legacy)), vendor = legacy$vendor,
+            model = legacy$model,
+            total_memory_bytes = legacy$memory_mb * 1024^2,
+            used_memory_bytes = rep(NA_real_, nrow(legacy)),
+            free_memory_bytes = rep(NA_real_, nrow(legacy)),
+            compute_capability_major = parts$major,
+            compute_capability_minor = parts$minor,
+            compute_capability = parts$text, cuda_arch = parts$arch,
+            backend = legacy$backend,
+            detection_source = ifelse(
+                legacy$backend == "metal", "metal-system-profiler",
+                ifelse(legacy$backend == "rocm", "rocm", "os-or-opencl")
+            ),
+            visibility_status = rep("process_visible", nrow(legacy)),
+            process_visible = rep(TRUE, nrow(legacy)), stringsAsFactors = FALSE
+        )
+    } else {
+        other <- .cuda_empty_devices()
+    }
+    pieces <- list(cuda, other)
+    pieces <- pieces[vapply(pieces, nrow, integer(1L)) > 0L]
+    if (!length(pieces)) return(.cuda_empty_devices())
+    out <- do.call(rbind, pieces)
+    rownames(out) <- NULL
+    out
+}
+
 #' Test whether a GPU is detected
 #'
 #' Returns `TRUE` when at least one graphics processor is visible to the current
@@ -114,32 +184,21 @@ gpu_memory <- function(unit = c("bytes", "GB", "GiB", "MB", "MiB")) {
 
 #' Report total, used, and free GPU memory
 #'
-#' Dynamic usage is currently reported when `nvidia-smi` exposes it. Other
-#' backends retain known total memory and return `NA` for used/free memory.
+#' Total memory is a static device property. Used and free memory are dynamic
+#' snapshots queried from `nvidia-smi` when available and are not cached.
+#' Other backends retain known total memory and return `NA` for dynamic values.
+#' These are device-wide values, not memory attributed to the current process;
+#' use [gpu_memory_sample()] for process-level benchmark observations.
 #'
-#' @param unit Unit used for memory values.
-#' @return A data frame with one row per detected GPU.
-#' @noRd
-gpu_memory_info <- function(unit = c("bytes", "GB", "GiB", "MB", "MiB")) {
-    unit <- match.arg(unit)
-    gpu <- gpu_info()
-    out <- data.frame(id = gpu$id, model = gpu$model, total = gpu$memory_mb,
-        used = rep(NA_real_, nrow(gpu)), free = rep(NA_real_, nrow(gpu)),
-        stringsAsFactors = FALSE)
-    nvidia <- .cuda_memory_rows()
-    if (nrow(nvidia)) {
-        for (i in seq_len(nrow(out))) {
-            hit <- which(nvidia$id == out$id[[i]] & nvidia$model == out$model[[i]])
-            if (length(hit)) {
-                out$total[[i]] <- nvidia$total[[hit[[1L]]]]
-                out$used[[i]] <- nvidia$used[[hit[[1L]]]]
-                out$free[[i]] <- nvidia$free[[hit[[1L]]]]
-            }
-        }
-    }
-    factor <- switch(unit, bytes = 1024^2, GB = 1024^2 / 1e9,
-                     GiB = 1 / 1024, MB = 1024^2 / 1e6, MiB = 1)
-    out[c("total", "used", "free")] <- out[c("total", "used", "free")] * factor
-    attr(out, "unit") <- unit
-    out
+#' @param refresh Re-run cached static CUDA discovery. Dynamic memory is always
+#'   refreshed regardless of this argument.
+#' @return A data frame whose memory columns are explicitly measured in bytes.
+#' @export
+gpu_memory_info <- function(refresh = FALSE) {
+    devices <- gpu_devices(refresh = refresh)
+    devices[c(
+        "logical_id", "physical_id", "uuid", "vendor", "model",
+        "total_memory_bytes", "used_memory_bytes", "free_memory_bytes",
+        "backend", "detection_source", "visibility_status", "process_visible"
+    )]
 }

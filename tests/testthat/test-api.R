@@ -14,8 +14,11 @@ test_that("predicates always return scalar logical values", {
 
 test_that("the public API stays minimal", {
     expect_setequal(getNamespaceExports("gpuinfo"), c(
-        "hardware_info", "gpu_sitrep", "has_gpu", "has_cuda",
-        "has_metal", "has_rocm", "has_opencl"
+        "hardware_info", "gpu_sitrep", "gpu_devices", "gpu_memory_info",
+        "gpu_memory_sample", "hardware_manifest", "cuda_info", "nccl_info",
+        "cuda_libraries", "cuda_build_info", "cuda_preflight", "cpu_info",
+        "system_memory_info", "has_gpu",
+        "has_cuda", "has_metal", "has_rocm", "has_opencl"
     ))
 })
 

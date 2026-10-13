@@ -39,6 +39,19 @@ typedef int (*cu_device_get_fn)(int *, int);
 typedef int (*cu_device_name_fn)(char *, int, int);
 typedef int (*cu_device_memory_fn)(size_t *, int);
 typedef int (*cu_device_capability_fn)(int *, int *, int);
+typedef struct { unsigned char bytes[16]; } gpuinfo_uuid;
+typedef int (*cu_device_uuid_fn)(gpuinfo_uuid *, int);
+
+static void gpuinfo_format_uuid(char *output, size_t size,
+                                const gpuinfo_uuid *uuid) {
+    snprintf(output, size,
+             "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-"
+             "%02x%02x%02x%02x%02x%02x",
+             uuid->bytes[0], uuid->bytes[1], uuid->bytes[2], uuid->bytes[3],
+             uuid->bytes[4], uuid->bytes[5], uuid->bytes[6], uuid->bytes[7],
+             uuid->bytes[8], uuid->bytes[9], uuid->bytes[10], uuid->bytes[11],
+             uuid->bytes[12], uuid->bytes[13], uuid->bytes[14], uuid->bytes[15]);
+}
 
 SEXP gpuinfo_cuda_probe(void) {
 #ifdef _WIN32
@@ -49,23 +62,35 @@ SEXP gpuinfo_cuda_probe(void) {
     const char *names[] = {"libcuda.so.1", "libcuda.so", "/usr/lib/wsl/lib/libcuda.so.1", NULL};
 #endif
     gpuinfo_lib lib = gpuinfo_open(names);
-    int initialized = 0, count = 0, version = 0, i;
-    SEXP answer, answer_names, device_names, memory, capability;
-    const char *fields[] = {"library", "initialized", "count", "driver_version",
-                            "names", "memory_mb", "compute_capability"};
+    int initialized = 0, init_status = -1, count_status = -1;
+    int count = 0, version = 0, i;
+    SEXP answer, answer_names, device_names, memory_bytes, memory_mb;
+    SEXP capability, capability_major, capability_minor, uuids;
+    const char *fields[] = {
+        "library", "initialized", "init_status", "count_status", "count",
+        "driver_version", "names", "memory_bytes", "memory_mb",
+        "compute_capability_major", "compute_capability_minor",
+        "compute_capability", "uuids"
+    };
 
-    PROTECT(answer = allocVector(VECSXP, 7));
-    PROTECT(answer_names = allocVector(STRSXP, 7));
-    for (i = 0; i < 7; ++i) SET_STRING_ELT(answer_names, i, mkChar(fields[i]));
+    PROTECT(answer = allocVector(VECSXP, 13));
+    PROTECT(answer_names = allocVector(STRSXP, 13));
+    for (i = 0; i < 13; ++i) SET_STRING_ELT(answer_names, i, mkChar(fields[i]));
     setAttrib(answer, R_NamesSymbol, answer_names);
     if (lib == NULL) {
         SET_VECTOR_ELT(answer, 0, ScalarLogical(0));
         SET_VECTOR_ELT(answer, 1, ScalarLogical(0));
-        SET_VECTOR_ELT(answer, 2, ScalarInteger(0));
+        SET_VECTOR_ELT(answer, 2, ScalarInteger(NA_INTEGER));
         SET_VECTOR_ELT(answer, 3, ScalarInteger(NA_INTEGER));
-        SET_VECTOR_ELT(answer, 4, allocVector(STRSXP, 0));
-        SET_VECTOR_ELT(answer, 5, allocVector(REALSXP, 0));
+        SET_VECTOR_ELT(answer, 4, ScalarInteger(0));
+        SET_VECTOR_ELT(answer, 5, ScalarInteger(NA_INTEGER));
         SET_VECTOR_ELT(answer, 6, allocVector(STRSXP, 0));
+        SET_VECTOR_ELT(answer, 7, allocVector(REALSXP, 0));
+        SET_VECTOR_ELT(answer, 8, allocVector(REALSXP, 0));
+        SET_VECTOR_ELT(answer, 9, allocVector(INTSXP, 0));
+        SET_VECTOR_ELT(answer, 10, allocVector(INTSXP, 0));
+        SET_VECTOR_ELT(answer, 11, allocVector(STRSXP, 0));
+        SET_VECTOR_ELT(answer, 12, allocVector(STRSXP, 0));
         UNPROTECT(2);
         return answer;
     }
@@ -75,44 +100,226 @@ SEXP gpuinfo_cuda_probe(void) {
         cu_device_count_fn cuDeviceGetCount = (cu_device_count_fn) GPUINFO_SYM(lib, "cuDeviceGetCount");
         cu_driver_version_fn cuDriverGetVersion = (cu_driver_version_fn) GPUINFO_SYM(lib, "cuDriverGetVersion");
         if (cuDriverGetVersion != NULL) cuDriverGetVersion(&version);
-        if (cuInit != NULL && cuDeviceGetCount != NULL && cuInit(0) == 0 && cuDeviceGetCount(&count) == 0) {
-            initialized = 1;
-            if (count < 0 || count > 1024) count = 0;
+        if (cuInit != NULL) init_status = cuInit(0);
+        if (init_status == 0 && cuDeviceGetCount != NULL) {
+            count_status = cuDeviceGetCount(&count);
+            if (count_status == 0) {
+                initialized = 1;
+                if (count < 0 || count > 1024) count = 0;
+            } else {
+                count = 0;
+            }
         }
     }
 
     PROTECT(device_names = allocVector(STRSXP, count));
-    PROTECT(memory = allocVector(REALSXP, count));
+    PROTECT(memory_bytes = allocVector(REALSXP, count));
+    PROTECT(memory_mb = allocVector(REALSXP, count));
+    PROTECT(capability_major = allocVector(INTSXP, count));
+    PROTECT(capability_minor = allocVector(INTSXP, count));
     PROTECT(capability = allocVector(STRSXP, count));
+    PROTECT(uuids = allocVector(STRSXP, count));
     for (i = 0; i < count; ++i) {
         cu_device_get_fn cuDeviceGet = (cu_device_get_fn) GPUINFO_SYM(lib, "cuDeviceGet");
         cu_device_name_fn cuDeviceGetName = (cu_device_name_fn) GPUINFO_SYM(lib, "cuDeviceGetName");
         cu_device_memory_fn cuDeviceTotalMem = (cu_device_memory_fn) GPUINFO_SYM(lib, "cuDeviceTotalMem_v2");
         cu_device_capability_fn cuDeviceComputeCapability = (cu_device_capability_fn) GPUINFO_SYM(lib, "cuDeviceComputeCapability");
+        cu_device_uuid_fn cuDeviceGetUuid = (cu_device_uuid_fn) GPUINFO_SYM(lib, "cuDeviceGetUuid_v2");
         int device = i, major = 0, minor = 0;
         size_t bytes = 0;
-        char label[256] = "", cap[32] = "";
+        gpuinfo_uuid raw_uuid;
+        char label[256] = "", cap[32] = "", uuid[64] = "";
+        memset(&raw_uuid, 0, sizeof(raw_uuid));
+        if (cuDeviceGetUuid == NULL)
+            cuDeviceGetUuid = (cu_device_uuid_fn) GPUINFO_SYM(lib, "cuDeviceGetUuid");
         if (cuDeviceGet != NULL) cuDeviceGet(&device, i);
         if (cuDeviceGetName != NULL && cuDeviceGetName(label, 255, device) == 0)
             SET_STRING_ELT(device_names, i, mkCharCE(label, CE_UTF8));
         else SET_STRING_ELT(device_names, i, NA_STRING);
-        if (cuDeviceTotalMem != NULL && cuDeviceTotalMem(&bytes, device) == 0)
-            REAL(memory)[i] = (double) bytes / (1024.0 * 1024.0);
-        else REAL(memory)[i] = NA_REAL;
+        if (cuDeviceTotalMem != NULL && cuDeviceTotalMem(&bytes, device) == 0) {
+            REAL(memory_bytes)[i] = (double) bytes;
+            REAL(memory_mb)[i] = (double) bytes / (1024.0 * 1024.0);
+        } else {
+            REAL(memory_bytes)[i] = NA_REAL;
+            REAL(memory_mb)[i] = NA_REAL;
+        }
         if (cuDeviceComputeCapability != NULL && cuDeviceComputeCapability(&major, &minor, device) == 0) {
+            INTEGER(capability_major)[i] = major;
+            INTEGER(capability_minor)[i] = minor;
             snprintf(cap, sizeof(cap), "%d.%d", major, minor);
             SET_STRING_ELT(capability, i, mkChar(cap));
-        } else SET_STRING_ELT(capability, i, NA_STRING);
+        } else {
+            INTEGER(capability_major)[i] = NA_INTEGER;
+            INTEGER(capability_minor)[i] = NA_INTEGER;
+            SET_STRING_ELT(capability, i, NA_STRING);
+        }
+        if (cuDeviceGetUuid != NULL && cuDeviceGetUuid(&raw_uuid, device) == 0) {
+            gpuinfo_format_uuid(uuid, sizeof(uuid), &raw_uuid);
+            SET_STRING_ELT(uuids, i, mkChar(uuid));
+        } else SET_STRING_ELT(uuids, i, NA_STRING);
     }
     SET_VECTOR_ELT(answer, 0, ScalarLogical(1));
     SET_VECTOR_ELT(answer, 1, ScalarLogical(initialized));
-    SET_VECTOR_ELT(answer, 2, ScalarInteger(count));
-    SET_VECTOR_ELT(answer, 3, version > 0 ? ScalarInteger(version) : ScalarInteger(NA_INTEGER));
-    SET_VECTOR_ELT(answer, 4, device_names);
-    SET_VECTOR_ELT(answer, 5, memory);
-    SET_VECTOR_ELT(answer, 6, capability);
+    SET_VECTOR_ELT(answer, 2, init_status >= 0 ? ScalarInteger(init_status) : ScalarInteger(NA_INTEGER));
+    SET_VECTOR_ELT(answer, 3, count_status >= 0 ? ScalarInteger(count_status) : ScalarInteger(NA_INTEGER));
+    SET_VECTOR_ELT(answer, 4, ScalarInteger(count));
+    SET_VECTOR_ELT(answer, 5, version > 0 ? ScalarInteger(version) : ScalarInteger(NA_INTEGER));
+    SET_VECTOR_ELT(answer, 6, device_names);
+    SET_VECTOR_ELT(answer, 7, memory_bytes);
+    SET_VECTOR_ELT(answer, 8, memory_mb);
+    SET_VECTOR_ELT(answer, 9, capability_major);
+    SET_VECTOR_ELT(answer, 10, capability_minor);
+    SET_VECTOR_ELT(answer, 11, capability);
+    SET_VECTOR_ELT(answer, 12, uuids);
     GPUINFO_CLOSE(lib);
-    UNPROTECT(5);
+    UNPROTECT(9);
+    return answer;
+}
+
+typedef int (*cuda_runtime_version_fn)(int *);
+typedef int (*cuda_device_count_fn)(int *);
+typedef int (*nccl_version_fn)(int *);
+
+SEXP gpuinfo_library_probe(SEXP candidates) {
+    gpuinfo_lib lib = NULL;
+    const char *opened = NULL;
+    int i;
+    SEXP answer, answer_names;
+    const char *fields[] = {"loadable", "library_path"};
+
+    if (TYPEOF(candidates) != STRSXP)
+        error("candidates must be a character vector");
+    for (i = 0; i < LENGTH(candidates); ++i) {
+        const char *candidate;
+        if (STRING_ELT(candidates, i) == NA_STRING) continue;
+        candidate = CHAR(STRING_ELT(candidates, i));
+        if (candidate[0] == '\0') continue;
+#ifdef _WIN32
+        lib = LoadLibraryA(candidate);
+#else
+        lib = dlopen(candidate, RTLD_LAZY | RTLD_LOCAL);
+#endif
+        if (lib != NULL) {
+            opened = candidate;
+            break;
+        }
+    }
+
+    PROTECT(answer = allocVector(VECSXP, 2));
+    PROTECT(answer_names = allocVector(STRSXP, 2));
+    for (i = 0; i < 2; ++i)
+        SET_STRING_ELT(answer_names, i, mkChar(fields[i]));
+    setAttrib(answer, R_NamesSymbol, answer_names);
+    SET_VECTOR_ELT(answer, 0, ScalarLogical(lib != NULL));
+    SET_VECTOR_ELT(answer, 1,
+                   opened != NULL ? mkString(opened) : ScalarString(NA_STRING));
+    if (lib != NULL) GPUINFO_CLOSE(lib);
+    UNPROTECT(2);
+    return answer;
+}
+
+SEXP gpuinfo_nccl_probe(SEXP candidates) {
+    gpuinfo_lib lib = NULL;
+    const char *opened = NULL;
+    int i, version = 0, status = -1;
+    SEXP answer, answer_names;
+    const char *fields[] = {"library", "library_path", "version_status",
+                            "version_integer"};
+
+    if (TYPEOF(candidates) != STRSXP)
+        error("candidates must be a character vector");
+    for (i = 0; i < LENGTH(candidates); ++i) {
+        const char *candidate;
+        if (STRING_ELT(candidates, i) == NA_STRING) continue;
+        candidate = CHAR(STRING_ELT(candidates, i));
+        if (candidate[0] == '\0') continue;
+#ifdef _WIN32
+        lib = LoadLibraryA(candidate);
+#else
+        lib = dlopen(candidate, RTLD_LAZY | RTLD_LOCAL);
+#endif
+        if (lib != NULL) {
+            opened = candidate;
+            break;
+        }
+    }
+    if (lib != NULL) {
+        nccl_version_fn ncclGetVersion =
+            (nccl_version_fn) GPUINFO_SYM(lib, "ncclGetVersion");
+        if (ncclGetVersion != NULL) status = ncclGetVersion(&version);
+    }
+
+    PROTECT(answer = allocVector(VECSXP, 4));
+    PROTECT(answer_names = allocVector(STRSXP, 4));
+    for (i = 0; i < 4; ++i)
+        SET_STRING_ELT(answer_names, i, mkChar(fields[i]));
+    setAttrib(answer, R_NamesSymbol, answer_names);
+    SET_VECTOR_ELT(answer, 0, ScalarLogical(lib != NULL));
+    SET_VECTOR_ELT(answer, 1,
+                   opened != NULL ? mkString(opened) : ScalarString(NA_STRING));
+    SET_VECTOR_ELT(answer, 2,
+                   status >= 0 ? ScalarInteger(status) : ScalarInteger(NA_INTEGER));
+    SET_VECTOR_ELT(answer, 3,
+                   status == 0 && version > 0 ? ScalarInteger(version) :
+                   ScalarInteger(NA_INTEGER));
+    if (lib != NULL) GPUINFO_CLOSE(lib);
+    UNPROTECT(2);
+    return answer;
+}
+
+SEXP gpuinfo_cudart_probe(SEXP candidates) {
+    gpuinfo_lib lib = NULL;
+    int i, version = 0, version_status = -1, init_status = -1, count = 0;
+    const char *opened = NULL;
+    SEXP answer, answer_names;
+    const char *fields[] = {"library", "library_path", "version_query_status",
+                            "runtime_version", "initialized", "init_status",
+                            "device_count"};
+
+    if (TYPEOF(candidates) != STRSXP)
+        error("candidates must be a character vector");
+    for (i = 0; i < LENGTH(candidates); ++i) {
+        const char *candidate;
+        if (STRING_ELT(candidates, i) == NA_STRING) continue;
+        candidate = CHAR(STRING_ELT(candidates, i));
+        if (candidate[0] == '\0') continue;
+#ifdef _WIN32
+        lib = LoadLibraryA(candidate);
+#else
+        lib = dlopen(candidate, RTLD_LAZY | RTLD_LOCAL);
+#endif
+        if (lib != NULL) {
+            opened = candidate;
+            break;
+        }
+    }
+
+    PROTECT(answer = allocVector(VECSXP, 7));
+    PROTECT(answer_names = allocVector(STRSXP, 7));
+    for (i = 0; i < 7; ++i) SET_STRING_ELT(answer_names, i, mkChar(fields[i]));
+    setAttrib(answer, R_NamesSymbol, answer_names);
+
+    if (lib != NULL) {
+        cuda_runtime_version_fn cudaRuntimeGetVersion =
+            (cuda_runtime_version_fn) GPUINFO_SYM(lib, "cudaRuntimeGetVersion");
+        cuda_device_count_fn cudaGetDeviceCount =
+            (cuda_device_count_fn) GPUINFO_SYM(lib, "cudaGetDeviceCount");
+        if (cudaRuntimeGetVersion != NULL)
+            version_status = cudaRuntimeGetVersion(&version);
+        if (cudaGetDeviceCount != NULL)
+            init_status = cudaGetDeviceCount(&count);
+        if (count < 0 || count > 1024) count = 0;
+    }
+
+    SET_VECTOR_ELT(answer, 0, ScalarLogical(lib != NULL));
+    SET_VECTOR_ELT(answer, 1, opened != NULL ? mkString(opened) : ScalarString(NA_STRING));
+    SET_VECTOR_ELT(answer, 2, version_status >= 0 ? ScalarInteger(version_status) : ScalarInteger(NA_INTEGER));
+    SET_VECTOR_ELT(answer, 3, version_status == 0 && version > 0 ? ScalarInteger(version) : ScalarInteger(NA_INTEGER));
+    SET_VECTOR_ELT(answer, 4, ScalarLogical(init_status == 0));
+    SET_VECTOR_ELT(answer, 5, init_status >= 0 ? ScalarInteger(init_status) : ScalarInteger(NA_INTEGER));
+    SET_VECTOR_ELT(answer, 6, init_status == 0 ? ScalarInteger(count) : ScalarInteger(0));
+    if (lib != NULL) GPUINFO_CLOSE(lib);
+    UNPROTECT(2);
     return answer;
 }
 
@@ -208,25 +415,57 @@ SEXP gpuinfo_opencl_probe(void) {
 
 SEXP gpuinfo_metal_probe(void) {
     SEXP answer, answer_names;
-    int framework = 0, device = 0;
-    const char *fields[] = {"framework", "device"};
+    int framework = 0, device = 0, allocation_query_supported = 0;
+    double current_allocated_size = NA_REAL;
+    const char *fields[] = {"framework", "device", "allocation_query_supported",
+                            "current_allocated_size"};
 #ifdef __APPLE__
     const char *names[] = {"/System/Library/Frameworks/Metal.framework/Metal", NULL};
     gpuinfo_lib lib = gpuinfo_open(names);
     if (lib != NULL) {
         void *(*create_device)(void) = (void *(*)(void)) GPUINFO_SYM(lib, "MTLCreateSystemDefaultDevice");
         framework = 1;
-        if (create_device != NULL && create_device() != NULL) device = 1;
+        if (create_device != NULL) {
+            void *metal_device = create_device();
+            if (metal_device != NULL) {
+                const char *objc_names[] = {"/usr/lib/libobjc.A.dylib", NULL};
+                gpuinfo_lib objc = gpuinfo_open(objc_names);
+                device = 1;
+                if (objc != NULL) {
+                    void *(*sel_register)(const char *) =
+                        (void *(*)(const char *)) GPUINFO_SYM(objc, "sel_registerName");
+                    void *msg_send = GPUINFO_SYM(objc, "objc_msgSend");
+                    if (sel_register != NULL && msg_send != NULL) {
+                        void *responds = sel_register("respondsToSelector:");
+                        void *allocated = sel_register("currentAllocatedSize");
+                        uintptr_t (*send_selector)(void *, void *, void *) =
+                            (uintptr_t (*)(void *, void *, void *)) msg_send;
+                        uintptr_t (*send_uint)(void *, void *) =
+                            (uintptr_t (*)(void *, void *)) msg_send;
+                        if (send_selector(metal_device, responds, allocated)) {
+                            allocation_query_supported = 1;
+                            current_allocated_size =
+                                (double) send_uint(metal_device, allocated);
+                        }
+                    }
+                    GPUINFO_CLOSE(objc);
+                }
+            }
+        }
         GPUINFO_CLOSE(lib);
     }
 #endif
-    PROTECT(answer = allocVector(VECSXP, 2));
-    PROTECT(answer_names = allocVector(STRSXP, 2));
+    PROTECT(answer = allocVector(VECSXP, 4));
+    PROTECT(answer_names = allocVector(STRSXP, 4));
     SET_STRING_ELT(answer_names, 0, mkChar(fields[0]));
     SET_STRING_ELT(answer_names, 1, mkChar(fields[1]));
+    SET_STRING_ELT(answer_names, 2, mkChar(fields[2]));
+    SET_STRING_ELT(answer_names, 3, mkChar(fields[3]));
     setAttrib(answer, R_NamesSymbol, answer_names);
     SET_VECTOR_ELT(answer, 0, ScalarLogical(framework));
     SET_VECTOR_ELT(answer, 1, ScalarLogical(device));
+    SET_VECTOR_ELT(answer, 2, ScalarLogical(allocation_query_supported));
+    SET_VECTOR_ELT(answer, 3, ScalarReal(current_allocated_size));
     UNPROTECT(2);
     return answer;
 }

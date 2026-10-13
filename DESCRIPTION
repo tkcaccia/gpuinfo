@@ -1,14 +1,26 @@
 Package: gpuinfo
 Title: Lightweight Hardware and GPU Compute Detection
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("Stefano", "Cacciatore", role = c("aut", "cre"),
     email = "tkcaccia@gmail.com",
     comment = c(ORCID = "0000-0001-7052-7156"))
-Description: Detects central processing unit and graphics processing unit
-    hardware and reports the apparent availability of CUDA, Metal, ROCm, and
-    OpenCL compute backends. Detection uses operating-system information and
-    optional command-line utilities, without requiring a GPU framework,
-    Python, or a vendor software development kit. Missing hardware,
+Description: Detects central processing unit topology, process-available cores,
+    host and container memory, graphics processing unit hardware, and reports
+    the apparent availability of 'CUDA', 'Metal', 'ROCm',
+    and 'OpenCL' compute backends, with a read-only loadability inventory for
+    the 'CUDA' runtime, 'cuBLAS', 'cuFFT', 'cuSOLVER', 'cuRAND', and optional
+    'NCCL' libraries. Detection uses operating-system information,
+    documented platform interfaces, and optional command-line utilities,
+    without requiring a GPU framework, 'Python', or a vendor software
+    development kit. Backend interpretation follows the official 'CUDA'
+    <https://docs.nvidia.com/cuda/cuda-driver-api/>, 'Metal'
+    <https://developer.apple.com/documentation/metal>, 'ROCm'
+    <https://rocm.docs.amd.com/>, and 'OpenCL'
+    <https://registry.khronos.org/OpenCL/> documentation. 'NCCL' version
+    inspection follows its documented API
+    <https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/api/comms.html>.
+    Process-level GPU memory samples, multi-device inventories, and versioned
+    hardware manifests support reproducible benchmarks. Missing hardware,
     drivers, libraries, and utilities are handled safely.
 License: MIT + file LICENSE
 URL: https://github.com/tkcaccia/gpuinfo

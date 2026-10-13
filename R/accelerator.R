@@ -42,12 +42,14 @@ accelerator_info <- function() {
             stringsAsFactors = FALSE
         ))
     }
-    memory <- gpu_memory_info("bytes")
+    memory <- gpu_memory_info()
     free <- rep(NA_real_, nrow(gpu))
     if (nrow(memory)) {
         for (i in seq_len(nrow(gpu))) {
-            match_row <- which(memory$id == gpu$id[[i]])
-            if (length(match_row)) free[[i]] <- memory$free[[match_row[[1L]]]]
+            match_row <- which(memory$logical_id == gpu$id[[i]] &
+                               memory$backend == gpu$backend[[i]])
+            if (length(match_row))
+                free[[i]] <- memory$free_memory_bytes[[match_row[[1L]]]]
         }
     }
     status_table <- backend_info()

@@ -34,7 +34,7 @@ test_that("selection and requirement matching are consistent", {
 test_that("environment reporting is machine readable", {
     expect_type(environment_info(), "list")
     expect_length(visible_devices(), 6L)
-    expect_type(gpu_devices(), "integer")
+    expect_s3_class(gpu_devices(), "data.frame")
     expect_type(available_gpu_count(), "integer")
     expect_type(physical_gpu_count(), "integer")
 })

@@ -13,5 +13,7 @@ test_that("JSON diagnostics are optional and explicit", {
     value <- hardware_info("json")
     expect_s3_class(value, "json")
     expect_match(as.character(value), '"accelerators"')
-    expect_output(gpu_sitrep("json"), '"best_backend"')
+    expect_silent(report <- gpu_sitrep("json"))
+    expect_s3_class(report, "gpuinfo_sitrep")
+    expect_output(print(report), '"best_backend"')
 })
