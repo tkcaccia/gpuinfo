@@ -184,3 +184,184 @@ gpu_memory_sample <- function(pid = Sys.getpid(), refresh = FALSE) {
     }
     out
 }
+
+.gpuinfo_empty_memory_peak <- function() {
+    data.frame(
+        logical_id = integer(), physical_id = integer(), uuid = character(),
+        vendor = character(), model = character(), backend = character(),
+        total_memory_bytes = numeric(), peak_used_memory_bytes = numeric(),
+        peak_sample_time = character(), observed_sample_count = integer(),
+        incomplete_sample_count = integer(), worker_count = integer(),
+        measurement_status = character(), reason_code = character(),
+        stringsAsFactors = FALSE
+    )
+}
+
+.gpuinfo_peak_devices <- function(expected_devices) {
+    if (is.character(expected_devices)) {
+        expected_devices <- data.frame(
+            logical_id = rep(NA_integer_, length(expected_devices)),
+            physical_id = rep(NA_integer_, length(expected_devices)),
+            uuid = expected_devices,
+            vendor = rep(NA_character_, length(expected_devices)),
+            model = rep(NA_character_, length(expected_devices)),
+            backend = rep("cuda", length(expected_devices)),
+            total_memory_bytes = rep(NA_real_, length(expected_devices)),
+            stringsAsFactors = FALSE
+        )
+    }
+    if (!is.data.frame(expected_devices))
+        stop("'expected_devices' must be a device data frame or UUID vector.",
+             call. = FALSE)
+    if (!"uuid" %in% names(expected_devices))
+        stop("'expected_devices' must contain a 'uuid' column.", call. = FALSE)
+    defaults <- list(
+        logical_id = NA_integer_, physical_id = NA_integer_,
+        vendor = NA_character_, model = NA_character_, backend = "cuda",
+        total_memory_bytes = NA_real_
+    )
+    for (name in names(defaults)) {
+        if (!name %in% names(expected_devices))
+            expected_devices[[name]] <- rep(defaults[[name]], nrow(expected_devices))
+    }
+    expected_devices <- expected_devices[c(
+        "logical_id", "physical_id", "uuid", "vendor", "model", "backend",
+        "total_memory_bytes"
+    )]
+    expected_devices$uuid <- .cuda_normalize_uuid(expected_devices$uuid)
+    known <- expected_devices$uuid[!is.na(expected_devices$uuid)]
+    if (anyDuplicated(known))
+        stop("'expected_devices' must contain distinct non-missing UUIDs.",
+             call. = FALSE)
+    expected_devices
+}
+
+.gpuinfo_peak_samples <- function(samples) {
+    if (is.data.frame(samples)) samples <- list(samples)
+    if (!is.list(samples))
+        stop("'samples' must be a sample data frame or a list of them.",
+             call. = FALSE)
+    if (!length(samples)) {
+        out <- .gpuinfo_empty_memory_sample()
+        out$.sample_key <- character()
+        return(out)
+    }
+    required <- c(
+        "sample_time", "pid", "uuid", "used_memory_bytes",
+        "measurement_status"
+    )
+    rows <- lapply(seq_along(samples), function(i) {
+        value <- samples[[i]]
+        if (!is.data.frame(value) || !all(required %in% names(value)))
+            stop("Every sample must be a data frame returned by gpu_memory_sample().",
+                 call. = FALSE)
+        value$.sample_key <- paste(i, value$sample_time, sep = ":")
+        value
+    })
+    out <- do.call(rbind, rows)
+    rownames(out) <- NULL
+    out$uuid <- .cuda_normalize_uuid(out$uuid)
+    out
+}
+
+#' Calculate observed peak process memory for each GPU
+#'
+#' Aggregates repeated [gpu_memory_sample()] results into one row per expected
+#' GPU. Worker processes are combined within each sampling instant by UUID,
+#' and the largest complete sum is returned. Logical and physical device
+#' numbers are metadata only and are never used to match devices.
+#'
+#' An instant is complete only when every row for that GPU has a non-missing
+#' memory value and status `measured` or `not_active`. Incomplete instants are
+#' ignored rather than treated as zero. A device with no complete observation
+#' is returned with `peak_used_memory_bytes = NA`, status `unmeasured`, and an
+#' explanatory reason code.
+#'
+#' @param samples A data frame returned by [gpu_memory_sample()], several such
+#'   data frames combined with `rbind()`, or a list of sample data frames. A
+#'   list preserves separate observations even if timestamps are identical.
+#' @param expected_devices A device table, normally the process-visible rows
+#'   from [gpu_devices()], or a character vector of expected GPU UUIDs. Passing
+#'   this inventory is what allows completely missing GPUs to be reported as
+#'   unmeasured.
+#' @return A data frame with one row per expected device, identified by UUID,
+#'   containing the highest complete worker-process sum in bytes, the time of
+#'   that observation, observation counts, worker count, status, and reason.
+#' @examples
+#' devices <- gpu_devices()
+#' if (nrow(devices)) {
+#'     samples <- list(gpu_memory_sample(), gpu_memory_sample())
+#'     gpu_memory_peak(samples, devices[devices$process_visible, ])
+#' }
+#' @seealso [gpu_memory_sample()], [gpu_memory_info()]
+#' @export
+gpu_memory_peak <- function(samples, expected_devices) {
+    devices <- .gpuinfo_peak_devices(expected_devices)
+    sample_rows <- .gpuinfo_peak_samples(samples)
+    if (!nrow(devices)) return(.gpuinfo_empty_memory_peak())
+
+    rows <- lapply(seq_len(nrow(devices)), function(i) {
+        uuid <- devices$uuid[[i]]
+        hit <- if (is.na(uuid)) integer() else which(sample_rows$uuid == uuid)
+        device_samples <- sample_rows[hit, , drop = FALSE]
+        worker_count <- if (nrow(device_samples)) {
+            length(unique(device_samples$pid[!is.na(device_samples$pid)]))
+        } else 0L
+        peak <- NA_real_
+        peak_time <- NA_character_
+        observed <- incomplete <- 0L
+        reason <- "no_samples_for_device"
+
+        if (is.na(uuid)) {
+            reason <- "device_uuid_unavailable"
+        } else if (nrow(device_samples)) {
+            expected_pids <- unique(device_samples$pid[!is.na(device_samples$pid)])
+            groups <- split(seq_len(nrow(device_samples)),
+                            device_samples$.sample_key)
+            complete <- vapply(groups, function(index) {
+                group_pids <- device_samples$pid[index]
+                all(!is.na(device_samples$used_memory_bytes[index])) &&
+                    all(device_samples$measurement_status[index] %in%
+                        c("measured", "not_active")) &&
+                    !anyNA(group_pids) && !anyDuplicated(group_pids) &&
+                    setequal(group_pids, expected_pids)
+            }, logical(1L))
+            observed <- sum(complete)
+            incomplete <- sum(!complete)
+            if (observed) {
+                totals <- vapply(groups[complete], function(index) {
+                    sum(device_samples$used_memory_bytes[index])
+                }, numeric(1L))
+                best <- which.max(totals)
+                peak <- unname(totals[[best]])
+                best_rows <- groups[complete][[best]]
+                peak_time <- as.character(
+                    device_samples$sample_time[best_rows[[1L]]]
+                )
+                reason <- if (incomplete) "partial_samples_ignored" else "ok"
+            } else {
+                reason <- "no_complete_samples_for_device"
+            }
+        }
+        data.frame(
+            logical_id = as.integer(devices$logical_id[[i]]),
+            physical_id = as.integer(devices$physical_id[[i]]),
+            uuid = uuid,
+            vendor = as.character(devices$vendor[[i]]),
+            model = as.character(devices$model[[i]]),
+            backend = as.character(devices$backend[[i]]),
+            total_memory_bytes = as.numeric(devices$total_memory_bytes[[i]]),
+            peak_used_memory_bytes = peak,
+            peak_sample_time = peak_time,
+            observed_sample_count = as.integer(observed),
+            incomplete_sample_count = as.integer(incomplete),
+            worker_count = as.integer(worker_count),
+            measurement_status = if (observed) "measured" else "unmeasured",
+            reason_code = reason,
+            stringsAsFactors = FALSE
+        )
+    })
+    answer <- do.call(rbind, rows)
+    rownames(answer) <- NULL
+    answer
+}

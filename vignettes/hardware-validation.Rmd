@@ -65,6 +65,10 @@ before <- gpu_memory_sample()
 
 after <- gpu_memory_sample()
 manifest <- hardware_manifest(memory = "process")
+
+# For worker-based benchmarks, collect several snapshots and aggregate them.
+devices <- subset(gpu_devices(), process_visible)
+peak <- gpu_memory_peak(list(before, after), devices)
 ```
 
 `gpu_memory_info()` reports the device-wide total, used, and free values that
@@ -78,6 +82,13 @@ requested PID, reconciled to the CUDA-visible device by UUID. It is current,
 driver-attributed allocation rather than a peak. Windows WDDM drivers may not
 expose it, in which case the result is `NA` with a reason code. A successful
 query with no row for the process is zero bytes and `not_active`.
+
+`gpu_memory_peak()` groups rows by UUID, sums worker processes within each
+sampling instant, and returns the largest complete observed sum per expected
+device. It never reconciles by logical or physical device number. Missing or
+incomplete devices remain `NA` with status `unmeasured`, rather than being
+interpreted as zero. The result is sampling-dependent and is not a lifetime
+high-water mark maintained by the driver.
 
 For Metal, memory is `MTLDevice.currentAllocatedSize` for the current R process.
 It measures current Metal resource allocations, not resident memory, peak

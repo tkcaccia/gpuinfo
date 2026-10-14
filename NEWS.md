@@ -1,5 +1,8 @@
 # gpuinfo 0.2.0
 
+- Added `gpu_memory_peak()` to combine worker-process samples by GPU UUID and
+  return the highest complete observed memory sum for every expected device.
+  Missing observations remain explicitly unmeasured rather than becoming zero.
 - Added `cuda_libraries()`, a consolidated loadability table for the CUDA
   driver, CUDA runtime, cuBLAS, cuFFT, cuSOLVER, cuRAND, and NCCL. Optional
   libraries do not affect `has_cuda()`.

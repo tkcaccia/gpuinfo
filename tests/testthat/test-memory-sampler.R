@@ -127,3 +127,57 @@ test_that("hardware manifest is versioned and serializable", {
         expect_type(hardware_manifest(memory = "none", as = "json"), "character")
     }
 })
+
+test_that("peak memory combines workers by UUID rather than device number", {
+    devices <- memory_sample_devices(c("cuda", "cuda"), c("GPU-B", "GPU-A"))
+    devices$logical_id <- c(0L, 1L)
+    devices$physical_id <- c(7L, 3L)
+    make_sample <- function(time, values, statuses = rep("measured", 4L)) {
+        data.frame(
+            sample_time = rep(time, 4L), pid = rep(c(101L, 202L), each = 2L),
+            logical_id = rep(c(1L, 0L), 2L),
+            physical_id = rep(c(3L, 7L), 2L),
+            uuid = rep(c("GPU-A", "GPU-B"), 2L), vendor = "NVIDIA",
+            model = "mock", backend = "cuda", total_memory_bytes = 8 * 1024^3,
+            used_memory_bytes = values, free_memory_bytes = NA_real_,
+            measurement_scope = "process", measurement_source = "mock",
+            measurement_status = statuses,
+            reason_code = ifelse(statuses == "measured", "ok", "unavailable"),
+            stringsAsFactors = FALSE
+        )
+    }
+    samples <- list(
+        make_sample("2026-01-01T00:00:01Z", c(100, 50, 200, 70)),
+        make_sample("2026-01-01T00:00:02Z", c(400, 80, 250, NA),
+                    c("measured", "measured", "measured", "unavailable")),
+        make_sample("2026-01-01T00:00:03Z", c(300, 110, 300, 130))
+    )
+    peak <- gpu_memory_peak(samples, devices)
+    expect_identical(peak$uuid, c("GPU-B", "GPU-A"))
+    expect_identical(peak$logical_id, c(0L, 1L))
+    expect_identical(peak$physical_id, c(7L, 3L))
+    expect_equal(peak$peak_used_memory_bytes, c(240, 650))
+    expect_identical(peak$observed_sample_count, c(2L, 3L))
+    expect_identical(peak$incomplete_sample_count, c(1L, 0L))
+    expect_identical(peak$worker_count, c(2L, 2L))
+    expect_identical(peak$reason_code, c("partial_samples_ignored", "ok"))
+})
+
+test_that("peak memory reports missing devices as unmeasured", {
+    devices <- memory_sample_devices(c("cuda", "cuda"), c("GPU-A", "GPU-B"))
+    rows <- data.frame(
+        sample_time = "2026-01-01T00:00:01Z", pid = 101L,
+        logical_id = 0L, physical_id = 0L, uuid = "GPU-A", vendor = "NVIDIA",
+        model = "mock", backend = "cuda", total_memory_bytes = 8 * 1024^3,
+        used_memory_bytes = NA_real_, free_memory_bytes = NA_real_,
+        measurement_scope = "process", measurement_source = "mock",
+        measurement_status = "unavailable", reason_code = "unavailable",
+        stringsAsFactors = FALSE
+    )
+    peak <- gpu_memory_peak(rows, devices)
+    expect_true(all(is.na(peak$peak_used_memory_bytes)))
+    expect_identical(peak$measurement_status, c("unmeasured", "unmeasured"))
+    expect_identical(peak$reason_code,
+                     c("no_complete_samples_for_device", "no_samples_for_device"))
+    expect_false(any(peak$peak_used_memory_bytes == 0, na.rm = TRUE))
+})

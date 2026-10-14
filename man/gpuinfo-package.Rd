@@ -16,6 +16,7 @@ Use \code{\link[=hardware_info]{hardware_info()}} for the complete structured re
 \code{\link[=system_memory_info]{system_memory_info()}} for CPU and RAM resources, \code{\link[=gpu_sitrep]{gpu_sitrep()}} for
 a printable diagnostic object, \code{\link[=gpu_devices]{gpu_devices()}} and \code{\link[=gpu_memory_info]{gpu_memory_info()}} for
 device tables, \code{\link[=gpu_memory_sample]{gpu_memory_sample()}} for process-level benchmark samples,
+\code{\link[=gpu_memory_peak]{gpu_memory_peak()}} for UUID-based observed peak aggregation,
 \code{\link[=hardware_manifest]{hardware_manifest()}} for reusable benchmark provenance, and
 \code{\link[=cuda_info]{cuda_info()}}, \code{\link[=cuda_libraries]{cuda_libraries()}}, \code{\link[=cuda_build_info]{cuda_build_info()}}, and
 \code{\link[=cuda_preflight]{cuda_preflight()}} for provider-independent CUDA diagnostics, and

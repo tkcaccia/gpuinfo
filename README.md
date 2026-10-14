@@ -26,6 +26,7 @@ cuda_build_info()
 cuda_preflight()
 gpu_memory_info()
 gpu_memory_sample()
+gpu_memory_peak(samples, expected_devices)
 hardware_manifest()
 
 info <- hardware_info()
@@ -74,6 +75,9 @@ was built with GPU support. In particular:
   benchmark logs. CUDA uses the `nvidia-smi` compute-process table reconciled by
   GPU UUID. Metal uses `MTLDevice.currentAllocatedSize` for the current R
   process. Unsupported measurements are explicit `NA` values with reason codes.
+- `gpu_memory_peak()` combines worker processes by GPU UUID at each sampling
+  instant and reports the highest complete observed sum per expected GPU.
+  Missing or incomplete observations are `unmeasured`, never zero.
 - `hardware_manifest()` records versioned CPU, host/effective RAM, device,
   driver, runtime, Toolkit, optional NCCL information, environment, and
   optional GPU-memory data as an R list or JSON.
@@ -119,6 +123,31 @@ execution checks. For example, a consumer may use the runtime for kernels,
 cuFFT for transforms, cuBLAS/cuSOLVER/cuRAND for PCA, and NCCL for multi-GPU
 collectives. Higher-level dependencies such as cuVS and RAFT remain checks for
 that consumer because they are not evidence of general CUDA availability.
+
+## Observed peak GPU memory
+
+Benchmarks control their own sampling interval and synchronization. Collect
+several process-level samples, then summarize them without confusing CUDA
+logical ordinals with physical device numbers:
+
+```r
+devices <- subset(gpu_devices(), process_visible)
+workers <- c(1234L, 1235L) # benchmark worker PIDs
+
+samples <- lapply(seq_len(20), function(i) {
+    Sys.sleep(0.1)
+    gpu_memory_sample(workers)
+})
+
+gpu_memory_peak(samples, devices)
+```
+
+For each timestamp and UUID, memory attributed to all supplied worker PIDs is
+summed. The helper then selects the highest complete observation. If an
+expected UUID has no complete observation, its peak is `NA` with status
+`unmeasured`; it is not silently reported as zero. This is an observed peak,
+whose accuracy depends on sampling frequency, not a driver-maintained lifetime
+high-water mark.
 
 ## Containers and schedulers
 

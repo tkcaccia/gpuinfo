@@ -9,6 +9,7 @@
 #' [system_memory_info()] for CPU and RAM resources, [gpu_sitrep()] for
 #' a printable diagnostic object, [gpu_devices()] and [gpu_memory_info()] for
 #' device tables, [gpu_memory_sample()] for process-level benchmark samples,
+#' [gpu_memory_peak()] for UUID-based observed peak aggregation,
 #' [hardware_manifest()] for reusable benchmark provenance, and
 #' [cuda_info()], [cuda_libraries()], [cuda_build_info()], and
 #' [cuda_preflight()] for provider-independent CUDA diagnostics, and
