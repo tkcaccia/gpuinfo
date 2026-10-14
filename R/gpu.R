@@ -115,8 +115,16 @@ gpu_info <- function() {
 #' @export
 gpu_devices <- function(refresh = FALSE) {
     cuda <- cuda_info(refresh = refresh)$devices
+    .gpuinfo_devices_from_cuda(cuda)
+}
+
+.gpuinfo_devices_from_cuda <- function(cuda) {
     legacy <- gpu_info()
-    legacy <- legacy[is.na(legacy$vendor) | legacy$vendor != "NVIDIA", , drop = FALSE]
+    if (nrow(cuda)) {
+        legacy <- legacy[
+            is.na(legacy$vendor) | legacy$vendor != "NVIDIA", , drop = FALSE
+        ]
+    }
     if (nrow(legacy)) {
         parts <- .cuda_capability_parts(legacy$compute_capability)
         other <- data.frame(
@@ -168,7 +176,10 @@ gpu_devices <- function(refresh = FALSE) {
 #' @seealso [hardware_info()], [has_cuda()], [has_metal()], [has_rocm()],
 #'   [has_opencl()]
 #' @export
-has_gpu <- function() nrow(gpu_info()) > 0L
+has_gpu <- function() {
+    devices <- gpu_devices()
+    nrow(devices) > 0L && any(devices$process_visible %in% TRUE)
+}
 
 gpu_count <- function() as.integer(nrow(gpu_info()))
 
@@ -196,6 +207,10 @@ gpu_memory <- function(unit = c("bytes", "GB", "GiB", "MB", "MiB")) {
 #' @export
 gpu_memory_info <- function(refresh = FALSE) {
     devices <- gpu_devices(refresh = refresh)
+    .gpuinfo_memory_info_from_devices(devices)
+}
+
+.gpuinfo_memory_info_from_devices <- function(devices) {
     devices[c(
         "logical_id", "physical_id", "uuid", "vendor", "model",
         "total_memory_bytes", "used_memory_bytes", "free_memory_bytes",

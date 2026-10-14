@@ -100,6 +100,26 @@ test_that("driver presence is separate from visible devices", {
     expect_true("no_visible_cuda_device" %in% info$reason_codes)
 })
 
+test_that("driver initialization and device enumeration stay independent", {
+    native <- mock_native_cuda(library = TRUE, initialized = TRUE,
+                               init_status = 0L)
+    native$count_status <- 999L
+    testthat::local_mocked_bindings(
+        .gpuinfo_native_cuda = function() native,
+        .cuda_smi_devices = function() gpuinfo:::.cuda_empty_devices(),
+        .gpuinfo_native_cudart = function(candidates) mock_runtime_cuda(),
+        .cuda_static_info = function(refresh = FALSE) mock_static_cuda(),
+        .cuda_driver_version = function() "580.1",
+        .cuda_supported_version = function() "13.0",
+        .package = "gpuinfo"
+    )
+    info <- cuda_info()
+    expect_true(info$driver_initialized)
+    expect_identical(info$driver_initialization_status, 0L)
+    expect_identical(info$driver_device_count_status, 999L)
+    expect_false(info$driver_usable)
+})
+
 test_that("driver can be usable without runtime Toolkit or nvcc", {
     native <- mock_native_cuda(
         TRUE, TRUE, "NVIDIA T4", "GPU-A", "7.5", 16 * 1024^3, 0L
@@ -203,6 +223,45 @@ test_that("UUID reconciliation does not use numeric id or model", {
     )
     expect_identical(rows$physical_id, c(1L, 0L))
     expect_true(all(rows$detection_source == "cuda-driver+nvidia-smi-uuid"))
+})
+
+test_that("has_gpu excludes physical-only CUDA devices", {
+    physical <- mock_physical_cuda(7L, "GPU-A", "NVIDIA GPU", "8.0")
+    visible <- physical
+    visible$logical_id <- 0L
+    visible$process_visible <- TRUE
+    visible$visibility_status <- "process_visible"
+    testthat::local_mocked_bindings(
+        gpu_devices = function(refresh = FALSE) physical,
+        .package = "gpuinfo"
+    )
+    expect_false(has_gpu())
+    testthat::local_mocked_bindings(
+        gpu_devices = function(refresh = FALSE) visible,
+        .package = "gpuinfo"
+    )
+    expect_true(has_gpu())
+})
+
+test_that("OS NVIDIA fallback is retained only without CUDA observations", {
+    generic <- data.frame(
+        id = 0L, vendor = "NVIDIA", model = "NVIDIA GPU",
+        memory_mb = 8192, backend = NA_character_,
+        compute_capability = NA_character_, stringsAsFactors = FALSE
+    )
+    physical <- mock_physical_cuda(7L, "GPU-A", "NVIDIA GPU", "8.0")
+    testthat::local_mocked_bindings(
+        gpu_info = function() generic,
+        .package = "gpuinfo"
+    )
+    fallback <- gpuinfo:::.gpuinfo_devices_from_cuda(
+        gpuinfo:::.cuda_empty_devices()
+    )
+    expect_equal(nrow(fallback), 1L)
+    expect_true(fallback$process_visible)
+    reconciled <- gpuinfo:::.gpuinfo_devices_from_cuda(physical)
+    expect_equal(nrow(reconciled), 1L)
+    expect_false(reconciled$process_visible)
 })
 
 test_that("memory information uses explicit byte columns", {

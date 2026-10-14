@@ -3,6 +3,7 @@ test_that("backend information is structured", {
     expect_named(cuda, c(
         "hardware_visible", "driver_library", "driver_initialized",
         "driver_usable", "driver_initialization_status",
+        "driver_device_count_status",
         "gpu", "driver", "driver_version", "driver_supported_cuda_version",
         "runtime_library", "runtime_library_path", "runtime_initialized",
         "runtime_usable", "runtime_initialization_status", "runtime",

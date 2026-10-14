@@ -102,6 +102,10 @@ gpu_memory_sample <- function(pid = Sys.getpid(), refresh = FALSE) {
     pid <- as.integer(pid)
     devices <- gpu_devices(refresh = refresh)
     devices <- devices[devices$process_visible %in% TRUE, , drop = FALSE]
+    .gpuinfo_memory_sample_from_devices(pid, devices)
+}
+
+.gpuinfo_memory_sample_from_devices <- function(pid, devices) {
     if (!nrow(devices)) return(.gpuinfo_empty_memory_sample())
 
     indices <- rep(seq_len(nrow(devices)), times = length(pid))

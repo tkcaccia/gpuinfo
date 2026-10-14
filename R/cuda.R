@@ -205,6 +205,10 @@
 #' the installed driver. It is not the installed runtime or Toolkit version.
 #' `runtime_version` comes only from `cudaRuntimeGetVersion()` in a dynamically
 #' loaded CUDA runtime library.
+#' `driver_initialization_status` records `cuInit()` separately from
+#' `driver_device_count_status`, which records `cuDeviceGetCount()`. Therefore
+#' a successfully initialized driver can still have an unavailable device
+#' count, and neither state alone implies that a CUDA device is visible.
 #'
 #' @param refresh Re-run cached static Toolkit and compiler discovery.
 #' @return A named list containing component states, versions, a CUDA-library
@@ -257,6 +261,7 @@ cuda_info <- function(refresh = FALSE) {
         driver_initialized = .gpuinfo_bool(driver_initialized),
         driver_usable = .gpuinfo_bool(driver_usable),
         driver_initialization_status = native$init_status %||% NA_integer_,
+        driver_device_count_status = native$count_status %||% NA_integer_,
         driver_version = driver_version,
         driver_supported_cuda_version = .cuda_supported_version(),
         runtime_library = .gpuinfo_bool(runtime_library),

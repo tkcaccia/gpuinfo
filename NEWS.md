@@ -1,5 +1,12 @@
 # gpuinfo 0.2.0
 
+- Corrected `has_gpu()` so physical-only CUDA devices hidden from the process
+  are not reported as usable process-visible GPUs, while retaining operating-
+  system fallback detection when CUDA provides no device observations.
+- Separated successful CUDA driver initialization from device-count query
+  status and exposed `driver_device_count_status` in `cuda_info()`.
+- Made `hardware_manifest()` reuse one CUDA/device snapshot across its CUDA,
+  NCCL, device, and optional memory sections.
 - Added `gpu_memory_peak()` to combine worker-process samples by GPU UUID and
   return the highest complete observed memory sum for every expected device.
   Missing observations remain explicitly unmeasured rather than becoming zero.

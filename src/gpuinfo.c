@@ -101,10 +101,10 @@ SEXP gpuinfo_cuda_probe(void) {
         cu_driver_version_fn cuDriverGetVersion = (cu_driver_version_fn) GPUINFO_SYM(lib, "cuDriverGetVersion");
         if (cuDriverGetVersion != NULL) cuDriverGetVersion(&version);
         if (cuInit != NULL) init_status = cuInit(0);
-        if (init_status == 0 && cuDeviceGetCount != NULL) {
+        initialized = init_status == 0;
+        if (initialized && cuDeviceGetCount != NULL) {
             count_status = cuDeviceGetCount(&count);
             if (count_status == 0) {
-                initialized = 1;
                 if (count < 0 || count > 1024) count = 0;
             } else {
                 count = 0;

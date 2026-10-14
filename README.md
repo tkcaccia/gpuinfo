@@ -50,10 +50,12 @@ was built with GPU support. In particular:
   and resident memory for a selected process in bytes. Dynamic values are not
   cached.
 - `cuda_info()` independently reports hardware visibility, driver loading and
-  initialization, runtime loading and initialization, Toolkit, `nvcc`,
-  component versions, and all visible devices. The CUDA version printed by
-  `nvidia-smi` is labelled `driver_supported_cuda_version`; it is not the
-  installed runtime or Toolkit.
+  initialization, device enumeration, runtime loading and initialization,
+  Toolkit, `nvcc`, component versions, and all visible devices. The
+  `driver_initialization_status` and `driver_device_count_status` fields keep
+  `cuInit()` and `cuDeviceGetCount()` outcomes separate. The CUDA version
+  printed by `nvidia-smi` is labelled `driver_supported_cuda_version`; it is
+  not the installed runtime or Toolkit.
 - `cuda_libraries()` returns one table for the CUDA driver, runtime, cuBLAS,
   cuFFT, cuSOLVER, cuRAND, and NCCL. A positive row means the shared library is
   loadable in the current process; it does not prove that development headers

@@ -128,6 +128,25 @@ test_that("hardware manifest is versioned and serializable", {
     }
 })
 
+test_that("hardware manifest reuses one CUDA snapshot", {
+    calls <- 0L
+    cuda <- list(devices = gpuinfo:::.cuda_empty_devices())
+    testthat::local_mocked_bindings(
+        cuda_info = function(refresh = FALSE) {
+            calls <<- calls + 1L
+            cuda
+        },
+        .gpuinfo_devices_from_cuda = function(value) value,
+        .nccl_info_from_cuda = function(value, refresh = FALSE) list(
+            visible_cuda_device_count = 0L
+        ),
+        .package = "gpuinfo"
+    )
+    manifest <- hardware_manifest(memory = "none")
+    expect_identical(calls, 1L)
+    expect_equal(nrow(manifest$devices), 0L)
+})
+
 test_that("peak memory combines workers by UUID rather than device number", {
     devices <- memory_sample_devices(c("cuda", "cuda"), c("GPU-B", "GPU-A"))
     devices$logical_id <- c(0L, 1L)

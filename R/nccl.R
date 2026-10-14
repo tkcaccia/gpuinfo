@@ -58,9 +58,13 @@
 #' @seealso [cuda_info()], [hardware_info()]
 #' @export
 nccl_info <- function(refresh = FALSE) {
+    cuda <- cuda_info(refresh = refresh)
+    .nccl_info_from_cuda(cuda, refresh = refresh)
+}
+
+.nccl_info_from_cuda <- function(cuda, refresh = FALSE) {
     supported <- .nccl_supported_platform()
     native <- .gpuinfo_native_nccl(.nccl_candidates(refresh = refresh))
-    cuda <- cuda_info(refresh = refresh)
     query_status <- if (length(native$version_status)) {
         as.integer(native$version_status[[1L]])
     } else NA_integer_

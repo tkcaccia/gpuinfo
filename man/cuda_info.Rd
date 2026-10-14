@@ -27,4 +27,8 @@ The \code{libraries} component is the consolidated table returned by
 the installed driver. It is not the installed runtime or Toolkit version.
 \code{runtime_version} comes only from \code{cudaRuntimeGetVersion()} in a dynamically
 loaded CUDA runtime library.
+\code{driver_initialization_status} records \code{cuInit()} separately from
+\code{driver_device_count_status}, which records \code{cuDeviceGetCount()}. Therefore
+a successfully initialized driver can still have an unavailable device
+count, and neither state alone implies that a CUDA device is visible.
 }

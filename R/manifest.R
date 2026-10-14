@@ -25,10 +25,17 @@ hardware_manifest <- function(memory = c("process", "device", "none"),
                               as = c("list", "json")) {
     memory <- match.arg(memory)
     as <- match.arg(as)
+    if (length(pid) != 1L || is.na(pid) || !is.finite(pid) || pid < 1 ||
+        pid > .Machine$integer.max || pid != floor(pid))
+        stop("'pid' must be one positive integer.", call. = FALSE)
+    pid <- as.integer(pid)
     cuda <- cuda_info(refresh = refresh)
+    devices <- .gpuinfo_devices_from_cuda(cuda$devices)
     cuda_fields <- c(
         "hardware_visible", "driver_library", "driver_initialized",
-        "driver_usable", "driver_version", "driver_supported_cuda_version",
+        "driver_usable", "driver_initialization_status",
+        "driver_device_count_status", "driver_version",
+        "driver_supported_cuda_version",
         "runtime_library", "runtime_initialized", "runtime_usable",
         "runtime_version", "runtime_version_status", "toolkit_available",
         "toolkit_root", "toolkit_version", "compiler_available", "nvcc_path",
@@ -36,11 +43,13 @@ hardware_manifest <- function(memory = c("process", "device", "none"),
         "reason_codes"
     )
     memory_value <- switch(memory,
-        process = gpu_memory_sample(pid = pid, refresh = refresh),
-        device = gpu_memory_info(refresh = refresh),
+        process = .gpuinfo_memory_sample_from_devices(
+            pid,
+            devices[devices$process_visible %in% TRUE, , drop = FALSE]
+        ),
+        device = .gpuinfo_memory_info_from_devices(devices),
         none = NULL
     )
-    devices <- gpu_devices(refresh = refresh)
     answer <- list(
         schema_version = "1.0",
         generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%OS3Z", tz = "UTC"),
@@ -54,7 +63,8 @@ hardware_manifest <- function(memory = c("process", "device", "none"),
         devices = devices,
         device_summary = .gpuinfo_gpu_summary(devices),
         components = list(
-            cuda = cuda[cuda_fields], nccl = nccl_info(refresh = refresh),
+            cuda = cuda[cuda_fields],
+            nccl = .nccl_info_from_cuda(cuda, refresh = refresh),
             metal = metal_info(),
             rocm = rocm_info(), opencl = opencl_info()
         ),
