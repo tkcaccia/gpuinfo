@@ -262,6 +262,10 @@ test_that("OS NVIDIA fallback is retained only without CUDA observations", {
     reconciled <- gpuinfo:::.gpuinfo_devices_from_cuda(physical)
     expect_equal(nrow(reconciled), 1L)
     expect_false(reconciled$process_visible)
+    hidden <- gpuinfo:::.gpuinfo_devices_from_cuda(
+        gpuinfo:::.cuda_empty_devices(), driver_initialized = TRUE
+    )
+    expect_equal(nrow(hidden), 0L)
 })
 
 test_that("memory information uses explicit byte columns", {

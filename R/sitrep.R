@@ -9,6 +9,9 @@
 #' whether torch, TensorFlow, or another package was compiled with GPU support.
 #' Containers, schedulers, permissions, and device-visibility environment
 #' variables can affect the result.
+#' Repeated commands and native probes are reused within this call to avoid
+#' scanning the same hardware several times. The observations are discarded
+#' when the call finishes; the next call collects fresh dynamic values.
 #'
 #' @param as Output representation. `"list"` returns native R objects.
 #'   `"json"` returns a pretty-printed JSON character scalar and requires the
@@ -66,15 +69,15 @@
 #' info$gpu
 #' info$cuda$usable
 #'
-#' if (requireNamespace("jsonlite", quietly = TRUE)) {
-#'     json <- hardware_info("json")
-#' }
-#'
 #' @seealso [gpu_sitrep()], [has_gpu()], [has_cuda()], [has_metal()],
 #'   [has_rocm()], [has_opencl()]
 #' @export
 hardware_info <- function(as = c("list", "json")) {
     as <- match.arg(as)
+    .gpuinfo_with_observation(function() .gpuinfo_hardware_info(as))
+}
+
+.gpuinfo_hardware_info <- function(as) {
     devices <- gpu_devices()
     answer <- list(
         r = list(version = paste(R.version$major, R.version$minor, sep = "."),
@@ -140,10 +143,6 @@ hardware_info <- function(as = c("list", "json")) {
 #' report <- gpu_sitrep()
 #' report$cpu$vendor
 #' print(report)
-#'
-#' if (requireNamespace("jsonlite", quietly = TRUE)) {
-#'     print(gpu_sitrep("json"))
-#' }
 #'
 #' @seealso [hardware_info()]
 #' @export

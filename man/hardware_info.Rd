@@ -27,6 +27,9 @@ and system software visible to the current R process; it does not determine
 whether torch, TensorFlow, or another package was compiled with GPU support.
 Containers, schedulers, permissions, and device-visibility environment
 variables can affect the result.
+Repeated commands and native probes are reused within this call to avoid
+scanning the same hardware several times. The observations are discarded
+when the call finishes; the next call collects fresh dynamic values.
 }
 \section{Returned components}{
 
@@ -78,10 +81,6 @@ names(info)
 info$cpu
 info$gpu
 info$cuda$usable
-
-if (requireNamespace("jsonlite", quietly = TRUE)) {
-    json <- hardware_info("json")
-}
 
 }
 \seealso{

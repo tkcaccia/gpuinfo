@@ -29,8 +29,16 @@ hardware_manifest <- function(memory = c("process", "device", "none"),
         pid > .Machine$integer.max || pid != floor(pid))
         stop("'pid' must be one positive integer.", call. = FALSE)
     pid <- as.integer(pid)
+    .gpuinfo_with_observation(function() {
+        .gpuinfo_hardware_manifest(memory, pid, refresh, as)
+    })
+}
+
+.gpuinfo_hardware_manifest <- function(memory, pid, refresh, as) {
     cuda <- cuda_info(refresh = refresh)
-    devices <- .gpuinfo_devices_from_cuda(cuda$devices)
+    devices <- .gpuinfo_devices_from_cuda(
+        cuda$devices, driver_initialized = isTRUE(cuda$driver_initialized)
+    )
     cuda_fields <- c(
         "hardware_visible", "driver_library", "driver_initialized",
         "driver_usable", "driver_initialization_status",

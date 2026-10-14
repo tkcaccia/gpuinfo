@@ -32,3 +32,44 @@ test_that("hardware_info and sitrep are safe", {
     expect_output(print(returned), "gpuinfo diagnostic report")
     expect_type(returned, "list")
 })
+
+test_that("reports run identical commands once and refresh between calls", {
+    commands <- character()
+    testthat::local_mocked_bindings(
+        .gpuinfo_run_command = function(command, args = character(), timeout = 5L) {
+            commands <<- c(commands, paste(command, paste(args, collapse = " "), timeout))
+            list(ok = FALSE, output = character(), status = NA_integer_,
+                 path = NA_character_)
+        },
+        .package = "gpuinfo"
+    )
+    first <- hardware_info()
+    first_commands <- commands
+    expect_gt(length(first_commands), 0L)
+    expect_identical(anyDuplicated(first_commands), 0L)
+    commands <- character()
+    second <- hardware_info()
+    expect_gt(length(commands), 0L)
+    expect_identical(anyDuplicated(commands), 0L)
+    expect_named(second, names(first))
+    expect_null(gpuinfo:::.gpuinfo_observation$cache)
+})
+
+test_that("observation reuse is nested and discarded after errors", {
+    observe <- gpuinfo:::.gpuinfo_with_observation
+    once <- gpuinfo:::.gpuinfo_observe_once
+    calls <- 0L
+    compute <- function() {
+        calls <<- calls + 1L
+        calls
+    }
+    values <- observe(function() {
+        c(once("memory", compute = compute),
+          observe(function() once("memory", compute = compute)))
+    })
+    expect_identical(values, c(1L, 1L))
+    expect_identical(once("memory", compute = compute), 2L)
+    expect_identical(observe(function() once("memory", compute = compute)), 3L)
+    expect_error(observe(function() stop("interrupted report")), "interrupted report")
+    expect_null(gpuinfo:::.gpuinfo_observation$cache)
+})

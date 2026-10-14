@@ -79,7 +79,8 @@ was built with GPU support. In particular:
   process. Unsupported measurements are explicit `NA` values with reason codes.
 - `gpu_memory_peak()` combines worker processes by GPU UUID at each sampling
   instant and reports the highest complete observed sum per expected GPU.
-  Missing or incomplete observations are `unmeasured`, never zero.
+  Use the same worker PID set for every sample. Incomplete observations are
+  skipped; a GPU with no complete observation is `unmeasured` with `NA` memory.
 - `hardware_manifest()` records versioned CPU, host/effective RAM, device,
   driver, runtime, Toolkit, optional NCCL information, environment, and
   optional GPU-memory data as an R list or JSON.
@@ -93,8 +94,8 @@ All probes are defensive. Missing commands, drivers, files, or hardware return
 `FALSE`, empty data frames, or `NA` fields rather than errors.
 
 `gpuinfo` never detects FAISS, cuVS, ANN methods, or package-specific CUDA
-capabilities. The integration boundary is documented in
-`docs/FAISSR-INTEGRATION.md` in the source package.
+capabilities. The integration boundary is documented in the
+[FAISS integration guide](https://github.com/tkcaccia/gpuinfo/blob/main/docs/FAISSR-INTEGRATION.md).
 
 Detailed backend inspection in `hardware_info()` uses three states:
 `available`, `unavailable`, and `unknown`. Predicates remain strict scalar
@@ -167,6 +168,12 @@ self-hosted runners.
 Account setup, provider links, exact validation commands, credential handling,
 and cleanup procedures are recorded in the
 [hardware access and validation playbook](https://github.com/tkcaccia/gpuinfo/blob/main/docs/HARDWARE-ACCESS.md).
+
+The CRAN check workflow covers Linux x86-64 and ARM64, Windows, and macOS on
+Apple Silicon and Intel. It also checks R-devel on Linux and Windows and
+R-oldrel on Linux. Every job runs `R CMD check --as-cran` and treats NOTEs as
+failures. Report examples collect one snapshot each; repeated probes share
+observations only for the duration of a report.
 
 The validation evidence for the 0.2.0 candidate covers Apple M3 Metal/OpenCL,
 NVIDIA Tesla T4 CUDA/OpenCL, NVIDIA RTX 5060 Ti CUDA 13.0 (including compute

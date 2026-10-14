@@ -7,7 +7,7 @@ Authors@R: person("Stefano", "Cacciatore", role = c("aut", "cre"),
 Description: Detects central processing unit topology, process-available cores,
     host and container memory, graphics processing unit hardware, and reports
     the apparent availability of 'CUDA', 'Metal', 'ROCm',
-    and 'OpenCL' compute backends, with a read-only loadability inventory for
+    and 'OpenCL' compute backends, with a read-only shared-library inventory for
     the 'CUDA' runtime, 'cuBLAS', 'cuFFT', 'cuSOLVER', 'cuRAND', and optional
     'NCCL' libraries. Detection uses operating-system information,
     documented platform interfaces, and optional command-line utilities,

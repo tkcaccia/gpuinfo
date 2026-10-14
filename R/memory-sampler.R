@@ -46,10 +46,14 @@
         "--query-compute-apps=pid,gpu_uuid,used_gpu_memory",
         "--format=csv,noheader,nounits"
     ))
+    rows <- if (isTRUE(result$ok)) .cuda_parse_process_memory(result$output) else
+        .cuda_parse_process_memory(character())
+    # An empty successful query means no active compute processes. Malformed
+    # rows instead make accounting uncertain; do not convert them to zero.
+    valid <- nrow(rows) == sum(nzchar(trimws(result$output)))
     list(
-        ok = isTRUE(result$ok),
-        rows = if (isTRUE(result$ok)) .cuda_parse_process_memory(result$output) else
-            .cuda_parse_process_memory(character()),
+        ok = isTRUE(result$ok) && valid,
+        rows = rows,
         status = result$status %||% NA_integer_
     )
 }
@@ -146,7 +150,8 @@ gpu_memory_sample <- function(pid = Sys.getpid(), refresh = FALSE) {
                     out$used_memory_bytes[[i]] <- 0
                     out$measurement_status[[i]] <- "not_active"
                     out$reason_code[[i]] <- "process_not_using_device"
-                } else if (all(is.na(query$rows$used_memory_bytes[hit]))) {
+                } else if (any(!is.finite(query$rows$used_memory_bytes[hit])) ||
+                           any(query$rows$used_memory_bytes[hit] < 0)) {
                     out$measurement_status[[i]] <- "unavailable"
                     out$reason_code[[i]] <- "cuda_process_memory_unavailable"
                 } else {
@@ -259,7 +264,9 @@ gpu_memory_sample <- function(pid = Sys.getpid(), refresh = FALSE) {
         if (!is.data.frame(value) || !all(required %in% names(value)))
             stop("Every sample must be a data frame returned by gpu_memory_sample().",
                  call. = FALSE)
-        value$.sample_key <- paste(i, value$sample_time, sep = ":")
+        value <- value[required]
+        value$.sample_key <- if (nrow(value))
+            paste(i, value$sample_time, sep = ":") else character()
         value
     })
     out <- do.call(rbind, rows)
@@ -275,8 +282,10 @@ gpu_memory_sample <- function(pid = Sys.getpid(), refresh = FALSE) {
 #' and the largest complete sum is returned. Logical and physical device
 #' numbers are metadata only and are never used to match devices.
 #'
-#' An instant is complete only when every row for that GPU has a non-missing
-#' memory value and status `measured` or `not_active`. Incomplete instants are
+#' Use the same worker PID set for all samples. The worker set is the union of
+#' PIDs observed across the supplied samples. An instant is complete only when
+#' every worker has one row for that GPU, a finite non-negative memory value,
+#' and status `measured` or `not_active`. Incomplete instants are
 #' ignored rather than treated as zero. A device with no complete observation
 #' is returned with `peak_used_memory_bytes = NA`, status `unmeasured`, and an
 #' explanatory reason code.
@@ -303,14 +312,13 @@ gpu_memory_peak <- function(samples, expected_devices) {
     devices <- .gpuinfo_peak_devices(expected_devices)
     sample_rows <- .gpuinfo_peak_samples(samples)
     if (!nrow(devices)) return(.gpuinfo_empty_memory_peak())
+    expected_pids <- unique(sample_rows$pid[!is.na(sample_rows$pid)])
 
     rows <- lapply(seq_len(nrow(devices)), function(i) {
         uuid <- devices$uuid[[i]]
         hit <- if (is.na(uuid)) integer() else which(sample_rows$uuid == uuid)
         device_samples <- sample_rows[hit, , drop = FALSE]
-        worker_count <- if (nrow(device_samples)) {
-            length(unique(device_samples$pid[!is.na(device_samples$pid)]))
-        } else 0L
+        worker_count <- length(expected_pids)
         peak <- NA_real_
         peak_time <- NA_character_
         observed <- incomplete <- 0L
@@ -319,12 +327,12 @@ gpu_memory_peak <- function(samples, expected_devices) {
         if (is.na(uuid)) {
             reason <- "device_uuid_unavailable"
         } else if (nrow(device_samples)) {
-            expected_pids <- unique(device_samples$pid[!is.na(device_samples$pid)])
             groups <- split(seq_len(nrow(device_samples)),
                             device_samples$.sample_key)
             complete <- vapply(groups, function(index) {
                 group_pids <- device_samples$pid[index]
-                all(!is.na(device_samples$used_memory_bytes[index])) &&
+                all(is.finite(device_samples$used_memory_bytes[index])) &&
+                    all(device_samples$used_memory_bytes[index] >= 0) &&
                     all(device_samples$measurement_status[index] %in%
                         c("measured", "not_active")) &&
                     !anyNA(group_pids) && !anyDuplicated(group_pids) &&

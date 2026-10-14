@@ -81,6 +81,37 @@ test_that("CUDA unavailable process accounting returns a reason code", {
     expect_identical(sample$reason_code, "cuda_process_memory_unavailable")
 })
 
+test_that("partly unavailable CUDA accounting is not silently summed", {
+    query <- list(ok = TRUE, rows = data.frame(
+        pid = c(99L, 99L), uuid = c("GPU-A", "GPU-A"),
+        used_memory_bytes = c(64, NA_real_)
+    ))
+    testthat::local_mocked_bindings(
+        gpu_devices = function(refresh = FALSE) memory_sample_devices(),
+        .cuda_process_memory = function() query,
+        .package = "gpuinfo"
+    )
+    sample <- gpu_memory_sample(99L)
+    expect_true(is.na(sample$used_memory_bytes))
+    expect_identical(sample$measurement_status, "unavailable")
+})
+
+test_that("malformed accounting output cannot masquerade as zero memory", {
+    output <- "malformed accounting output"
+    testthat::local_mocked_bindings(
+        gpu_devices = function(refresh = FALSE) memory_sample_devices(),
+        .gpuinfo_command = function(...) list(ok = TRUE, output = output, status = 0L),
+        .package = "gpuinfo"
+    )
+    sample <- gpu_memory_sample(99L)
+    expect_true(is.na(sample$used_memory_bytes))
+    expect_identical(sample$reason_code, "nvidia_smi_process_query_failed")
+    output <- character()
+    sample <- gpu_memory_sample(99L)
+    expect_equal(sample$used_memory_bytes, 0)
+    expect_identical(sample$measurement_status, "not_active")
+})
+
 test_that("Metal samples only the current process", {
     devices <- memory_sample_devices("metal", NA_character_)
     testthat::local_mocked_bindings(
@@ -136,7 +167,7 @@ test_that("hardware manifest reuses one CUDA snapshot", {
             calls <<- calls + 1L
             cuda
         },
-        .gpuinfo_devices_from_cuda = function(value) value,
+        .gpuinfo_devices_from_cuda = function(value, driver_initialized = FALSE) value,
         .nccl_info_from_cuda = function(value, refresh = FALSE) list(
             visible_cuda_device_count = 0L
         ),
@@ -199,4 +230,29 @@ test_that("peak memory reports missing devices as unmeasured", {
     expect_identical(peak$reason_code,
                      c("no_complete_samples_for_device", "no_samples_for_device"))
     expect_false(any(peak$peak_used_memory_bytes == 0, na.rm = TRUE))
+})
+
+test_that("peak memory rejects missing workers and invalid observations", {
+    rows <- data.frame(
+        sample_time = c("first", "first", "first", "second", "second"),
+        pid = c(101L, 202L, 101L, 101L, 202L),
+        uuid = c("GPU-A", "GPU-A", "GPU-B", "GPU-A", "GPU-A"),
+        used_memory_bytes = c(100, 200, 50, Inf, 400),
+        measurement_status = "measured"
+    )
+    peak <- gpu_memory_peak(rows, c("GPU-A", "GPU-B"))
+    expect_equal(peak$peak_used_memory_bytes[[1L]], 300)
+    expect_true(is.na(peak$peak_used_memory_bytes[[2L]]))
+    expect_identical(peak$worker_count, c(2L, 2L))
+    expect_identical(peak$incomplete_sample_count, c(1L, 1L))
+})
+
+test_that("empty samples and lists preserve unmeasured devices", {
+    empty <- gpuinfo:::.gpuinfo_empty_memory_sample()
+    for (samples in list(empty, list(empty), list())) {
+        peak <- gpu_memory_peak(samples, c("GPU-A", "GPU-B"))
+        expect_equal(nrow(peak), 2L)
+        expect_true(all(is.na(peak$peak_used_memory_bytes)))
+        expect_true(all(peak$measurement_status == "unmeasured"))
+    }
 })

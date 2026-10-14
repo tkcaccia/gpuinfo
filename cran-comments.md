@@ -2,6 +2,12 @@
 
 This is a resubmission. In response to the CRAN review:
 
+- Replaced "loadability" with "shared-library" in DESCRIPTION to remove the
+  spelling NOTE from the Windows and Debian incoming checks.
+- Shortened the `hardware_info()` and `gpu_sitrep()` examples to collect one
+  report each, removing repeated JSON discovery calls. Commands and native
+  probes are now reused within a single report, avoiding repeated PowerShell
+  launches on Windows. Dynamic observations are refreshed on the next call.
 - Software names in the `Description` field are now enclosed in single quotes.
   The `Title` contains only generic terms and no software names requiring
   quotation.

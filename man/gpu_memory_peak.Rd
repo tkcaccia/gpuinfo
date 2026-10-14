@@ -28,8 +28,10 @@ and the largest complete sum is returned. Logical and physical device
 numbers are metadata only and are never used to match devices.
 }
 \details{
-An instant is complete only when every row for that GPU has a non-missing
-memory value and status \code{measured} or \code{not_active}. Incomplete instants are
+Use the same worker PID set for all samples. The worker set is the union of
+PIDs observed across the supplied samples. An instant is complete only when
+every worker has one row for that GPU, a finite non-negative memory value,
+and status \code{measured} or \code{not_active}. Incomplete instants are
 ignored rather than treated as zero. A device with no complete observation
 is returned with \code{peak_used_memory_bytes = NA}, status \code{unmeasured}, and an
 explanatory reason code.

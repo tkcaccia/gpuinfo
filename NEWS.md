@@ -1,5 +1,14 @@
 # gpuinfo 0.2.0
 
+- Removed the incoming DESCRIPTION spelling NOTE by replacing "loadability"
+  with "shared-library" and shortened the report examples to one scan each.
+- Reused command and native probe results within each report to avoid repeated
+  PowerShell launches on Windows. A new report or memory sample observes fresh
+  dynamic values, and temporary observations are discarded even after errors.
+- Preserved missing memory for malformed or partly unavailable CUDA process
+  accounting, absent worker rows, and empty sample lists.
+- Prevented OS NVIDIA fallback rows from overriding an initialized CUDA driver
+  that reports no visible devices when `nvidia-smi` is unavailable.
 - Corrected `has_gpu()` so physical-only CUDA devices hidden from the process
   are not reported as usable process-visible GPUs, while retaining operating-
   system fallback detection when CUDA provides no device observations.

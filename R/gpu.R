@@ -114,13 +114,14 @@ gpu_info <- function() {
 #'   physical-only observations.
 #' @export
 gpu_devices <- function(refresh = FALSE) {
-    cuda <- cuda_info(refresh = refresh)$devices
-    .gpuinfo_devices_from_cuda(cuda)
+    cuda <- cuda_info(refresh = refresh)
+    .gpuinfo_devices_from_cuda(cuda$devices,
+                              driver_initialized = isTRUE(cuda$driver_initialized))
 }
 
-.gpuinfo_devices_from_cuda <- function(cuda) {
+.gpuinfo_devices_from_cuda <- function(cuda, driver_initialized = FALSE) {
     legacy <- gpu_info()
-    if (nrow(cuda)) {
+    if (nrow(cuda) || isTRUE(driver_initialized)) {
         legacy <- legacy[
             is.na(legacy$vendor) | legacy$vendor != "NVIDIA", , drop = FALSE
         ]

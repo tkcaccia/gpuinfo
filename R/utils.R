@@ -1,5 +1,28 @@
 .gpuinfo_cache <- new.env(parent = emptyenv())
 
+# Reuse probes within one report only. Keep this separate from static discovery
+# so memory and process visibility are observed again for every new report.
+.gpuinfo_observation <- new.env(parent = emptyenv())
+
+.gpuinfo_with_observation <- function(compute) {
+    if (!is.null(.gpuinfo_observation$cache)) return(compute())
+    .gpuinfo_observation$cache <- new.env(parent = emptyenv())
+    on.exit(.gpuinfo_observation$cache <- NULL, add = TRUE)
+    compute()
+}
+
+.gpuinfo_observe_once <- function(probe, arguments = NULL, compute) {
+    cache <- .gpuinfo_observation$cache
+    if (is.null(cache)) return(compute())
+    key <- paste(as.character(serialize(list(probe, arguments), NULL)),
+                 collapse = "")
+    if (exists(key, envir = cache, inherits = FALSE))
+        return(get(key, envir = cache, inherits = FALSE))
+    value <- compute()
+    assign(key, value, envir = cache)
+    value
+}
+
 .gpuinfo_cached <- function(key, compute) {
     if (exists(key, envir = .gpuinfo_cache, inherits = FALSE))
         return(get(key, envir = .gpuinfo_cache, inherits = FALSE))
@@ -21,6 +44,12 @@
 }
 
 .gpuinfo_command <- function(command, args = character(), timeout = 5L) {
+    .gpuinfo_observe_once("command", list(command, args, timeout), function() {
+        .gpuinfo_run_command(command, args, timeout)
+    })
+}
+
+.gpuinfo_run_command <- function(command, args = character(), timeout = 5L) {
     path <- unname(Sys.which(command))
     if (!length(path) || !nzchar(path)) {
         return(list(ok = FALSE, output = character(), status = NA_integer_, path = NA_character_))

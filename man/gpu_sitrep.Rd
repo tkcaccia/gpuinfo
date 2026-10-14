@@ -33,10 +33,6 @@ report <- gpu_sitrep()
 report$cpu$vendor
 print(report)
 
-if (requireNamespace("jsonlite", quietly = TRUE)) {
-    print(gpu_sitrep("json"))
-}
-
 }
 \seealso{
 \code{\link[=hardware_info]{hardware_info()}}
