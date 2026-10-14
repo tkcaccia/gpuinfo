@@ -23,16 +23,33 @@ This is a resubmission. In response to the CRAN review:
 
 ## R CMD check results
 
-Tested from the source tarball with R 4.6.0 on macOS 14.5 (Apple Silicon):
+Version remains 0.2.0. The rebuilt source tarball passed the full
+`R CMD check --as-cran` with R 4.6.0 on macOS 14.5 (Apple Silicon), including
+the PDF manual:
 
 - 0 errors
 - 0 warnings
 - 0 notes
 
+Eight hosted checks also passed with zero errors, warnings, or notes, using
+`R CMD check --as-cran --no-manual` (the full manual was checked locally):
+
+- Linux x86-64: R-release, R-devel, and R-oldrel-1
+- Linux ARM64: R-release
+- Windows x86-64: R-release and R-devel
+- macOS Apple Silicon and Intel: R-release
+
+Evidence: <https://github.com/tkcaccia/gpuinfo/actions/runs/38553140191>.
+The workflow treats every NOTE as a failure. Windows R-devel reports
+`checking examples ... OK` without a slow-example NOTE. In the local source
+tarball check, the `gpu_sitrep` and `hardware_info` examples took 0.257 and
+0.335 seconds respectively.
+
 The CUDA, multi-device, and NCCL paths are covered by hardware-independent
-mock tests. The saved Ubuntu NVIDIA validation host was offline during the
-final archive check, so the optional NCCL addition was not represented as a
-new real-hardware validation result.
+mock tests, including missing worker rows, unavailable process memory,
+malformed accounting output, empty samples, and UUID-based reconciliation.
+The optional NCCL addition is not represented as a new real-hardware
+validation result.
 
 ## Validation scope
 
